@@ -30,6 +30,7 @@
             <span id="saldo-display" style="color: var(--primary-orange); font-weight: bold; font-size: 14px;"></span>
             <a href="wallet.html" class="nav-item">💳 Wallet</a>
             <a href="noleggio-attivo.html" class="nav-item">🚗 Noleggio</a>
+            <a href="segnalazione.html" class="nav-item">⚠️ Segnalazioni</a>
             <a href="#" class="nav-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
@@ -81,11 +82,9 @@
             if (!confirm(`Confermi il noleggio di ${codiceMezzo}?`)) return;
 
             try {
-                // Inserimento noleggio
                 await supabaseClient.from("noleggi").insert([{
                     utente_id: user.id, veicolo_id: codiceMezzo, data_inizio: new Date().toISOString(), stato: 'Attivo', costo_totale: COSTO
                 }]);
-                // Aggiornamenti
                 await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
                 await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
                 alert("Noleggio avviato!");
