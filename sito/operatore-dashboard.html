@@ -2,35 +2,64 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Test di Vita</title>
+    <title>Izalith - Operatore Logistica</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --text-light: #FFFFFF; }
+        body { background-color: var(--dark-bg); color: var(--text-light); margin: 0; font-family: sans-serif; }
+        .workspace { display: grid; grid-template-rows: 1fr 300px; height: 100vh; }
+        #map { height: 100%; width: 100%; }
+        .sidebar-fleet { background: #1E1E1E; padding: 15px; overflow-y: auto; }
+        .bottom-section { background: #1E1E1E; padding: 15px; }
+        table { width: 100%; border-collapse: collapse; color: white; }
+        td, th { padding: 10px; border-bottom: 1px solid #333; }
+    </style>
 </head>
 <body>
-    <h1 id="status">Inizio caricamento...</h1>
+
+    <div class="workspace">
+        <div style="display: grid; grid-template-columns: 300px 1fr;">
+            <div class="sidebar-fleet" id="lista-veicoli-operatore">Caricamento flotta...</div>
+            <div id="map"></div>
+        </div>
+        <div class="bottom-section">
+            <table>
+                <thead><tr><th>Area</th><th>Categoria</th><th>Descrizione</th></tr></thead>
+                <tbody id="corpo-tabella-operatore"></tbody>
+            </table>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        console.log("1. Lo script è partito");
+        const supabase = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        
+        async function init() {
+            // 1. Inizializza Mappa
+            const map = L.map('map').setView([41.1171, 16.8719], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        async function test() {
-            try {
-                console.log("2. Provo a creare il client Supabase");
-                const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
-                
-                console.log("3. Provo a interrogare il database");
-                const { data, error } = await supabaseClient.from('veicoli').select('*');
-                
-                if (error) {
-                    document.getElementById("status").innerText = "Errore DB: " + error.message;
-                } else {
-                    document.getElementById("status").innerText = "Successo! Dati ricevuti: " + data.length;
-                    console.log("4. Dati ricevuti:", data);
-                }
-            } catch (err) {
-                document.getElementById("status").innerText = "Errore Critico: " + err.message;
-            }
+            // 2. Carica Veicoli
+            const { data: veicoli } = await supabase.from('veicoli').select('*').eq('area', 'BA-01');
+            const lista = document.getElementById("lista-veicoli-operatore");
+            lista.innerHTML = "<strong>Stato Flotta</strong><br>";
+            veicoli?.forEach(v => {
+                lista.innerHTML += `<div>${v.nome}: ${v.batteria}%</div>`;
+                if(v.latitudine) L.marker([v.latitudine, v.longitudine]).addTo(map);
+            });
+
+            // 3. Carica Segnalazioni (Tecnica)
+            const { data: ticket } = await supabase.from('segnalazioni').select('*');
+            const corpo = document.getElementById("corpo-tabella-operatore");
+            const filtrati = ticket?.filter(t => String(t.categoria).toLowerCase().includes('tecnica'));
+            
+            corpo.innerHTML = filtrati?.map(t => 
+                `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td></tr>`
+            ).join('') || "<tr><td>Nessun dato tecnico</td></tr>";
         }
 
-        test();
+        window.onload = init;
     </script>
 </body>
 </html>
