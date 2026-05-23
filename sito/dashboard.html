@@ -39,7 +39,7 @@
 <body>
 
     <nav class="app-navbar">
-        <div class="nav-brand" onclick="window.location.replace('dashboard.html')">
+        <div class="nav-brand" onclick="window.location.reload()">
             <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
                 <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
@@ -47,18 +47,16 @@
             <span>IZALITH</span>
         </div>
         <div class="nav-menu">
-            <button class="nav-btn active" onclick="window.location.replace('dashboard.html')">Esplora Mappa</button>
-            <button class="nav-btn" onclick="window.location.replace('wallet.html')">Il Mio Wallet</button>
-            <button class="nav-btn" onclick="window.location.replace('noleggio-attivo.html')">Noleggio Attivo</button>
-            <button class="nav-btn" onclick="window.location.replace('segnalazione.html')">Invia Segnalazione</button>
-            <button class="nav-btn" style="color: #f44336;" onclick="window.location.replace('index.html')">Esci</button>
+            <button class="nav-btn active" onclick="window.location.href='dashboard.html'">Esplora Mappa</button>
+            <button class="nav-btn" onclick="window.location.href='wallet.html'">Il Mio Wallet</button>
+            <button class="nav-btn" onclick="window.location.href='noleggio-attivo.html'">Noleggio Attivo</button>
+            <button class="nav-btn" onclick="window.location.href='segnalazione.html'">Invia Segnalazione</button>
         </div>
     </nav>
 
     <div class="main-workspace">
         <div class="sidebar-fleet">
             <div class="fleet-title">Eco-Sharing Flotta</div>
-            
             <div class="filter-group">
                 <label>Tipologia Veicolo</label>
                 <select id="tipo-veicolo" class="filter-select" onchange="caricaVeicoliFlotta()">
@@ -68,9 +66,6 @@
                     <option value="Monopattino">🛴 Monopattini</option>
                 </select>
             </div>
-
-            <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 5px;">Mezzi disponibili a Bari [BA-01]:</p>
-            
             <div id="lista-veicoli"></div>
         </div>
 
@@ -85,71 +80,54 @@
         const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const veicoliMock = [
-            { id: 1, codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94, area: "Bari [BA-01]" },
-            { id: 2, codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 82, area: "Bari [BA-01]" },
-            { id: 3, codice: "Pattino-X1", tipo: "Monopattino", nome: "Izalith Speed", batteria: 45, area: "Bari [BA-01]" }
-        ];
-
-        window.onload = function() {
-            caricaVeicoliFlotta();
-        };
+        window.onload = function() { caricaVeicoliFlotta(); };
 
         async function caricaVeicoliFlotta() {
             const listaDiv = document.getElementById("lista-veicoli");
-            let tipoSelezionato = document.getElementById("tipo-veicolo").value;
+            const tipoSelezionato = document.getElementById("tipo-veicolo").value;
             
-            listaDiv.innerHTML = '<p class="no-vehicles">Ricerca telemetria mezzi...</p>';
-            let veicoliVisualizzabili = [];
+            listaDiv.innerHTML = '<p class="no-vehicles">Sincronizzazione flotta...</p>';
 
             try {
-                let query = supabase.from('veicoli').select('*').eq('area', 'Bari [BA-01]');
+                // MODIFICA: Filtro per area_competenza invece di area
+                let query = supabase.from('veicoli').select('*').eq('area_competenza', 'BA-01').eq('stato', 'Disponibile');
+                
                 if (tipoSelezionato !== "Tutti") {
                     query = query.eq('tipo', tipoSelezionato);
                 }
-                const { data: veicoliCloud, error } = await query;
                 
-                if (!error && veicoliCloud && veicoliCloud.length > 0) {
-                    veicoliVisualizzabili = veicoliCloud;
-                } else {
-                    veicoliVisualizzabili = veicoliMock.filter(m => tipoSelezionato === "Tutti" || m.tipo === tipoSelezionato);
+                const { data: veicoli, error } = await query;
+                
+                if (error || !veicoli || veicoli.length === 0) {
+                    listaDiv.innerHTML = `<p class="no-vehicles">Nessun veicolo disponibile nell'area.</p>`;
+                    return;
                 }
+
+                listaDiv.innerHTML = "";
+                veicoli.forEach(mezzo => {
+                    let icona = mezzo.tipo === "Auto" ? "🚗" : (mezzo.tipo === "Scooter" ? "🛵" : "🛴");
+                    let div = document.createElement('div');
+                    div.className = "vehicle-box";
+                    div.innerHTML = `
+                        <div class="vehicle-meta">
+                            <strong>${icona} ${mezzo.nome}</strong>
+                            <span class="battery-level" style="color: ${mezzo.batteria < 30 ? '#f44336' : '#4CAF50'}">${mezzo.batteria}%</span>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 13px;">Codice: ${mezzo.codice}</p>
+                        <button class="btn-rent" onclick="avviaNoleggio('${mezzo.codice}')">Noleggia Mezzo</button>
+                    `;
+                    listaDiv.appendChild(div);
+                });
             } catch (e) {
-                veicoliVisualizzabili = veicoliMock.filter(m => tipoSelezionato === "Tutti" || m.tipo === tipoSelezionato);
+                listaDiv.innerHTML = '<p class="no-vehicles">Errore di connessione.</p>';
             }
-
-            if (veicoliVisualizzabili.length === 0) {
-                listaDiv.innerHTML = `<p class="no-vehicles">Nessun ${tipoSelezionato.toLowerCase()} disponibile.</p>`;
-                return;
-            }
-
-            listaDiv.innerHTML = "";
-            veicoliVisualizzabili.forEach(mezzo => {
-                let icona = "🛴";
-                if(mezzo.tipo === "Auto") icona = "🚗";
-                if(mezzo.tipo === "Scooter") icona = "🛵";
-
-                let div = document.createElement('div');
-                div.className = "vehicle-box";
-                div.onclick = function() { alert(`Mappa centrata sul mezzo ${mezzo.codice}`); };
-                
-                div.innerHTML = `
-                    <div class="vehicle-meta">
-                        <strong>${icona} ${mezzo.nome}</strong> 
-                        <span class="battery-level" style="color: ${mezzo.batteria < 30 ? '#f44336' : '#4CAF50'}">${mezzo.batteria}%</span>
-                    </div>
-                    <p style="color: var(--text-muted); font-size: 13px;">Codice: ${mezzo.codice}</p>
-                    <button class="btn-rent" onclick="event.stopPropagation(); avviaNoleggioMock('${mezzo.codice}')">Noleggia Mezzo</button>
-                `;
-                listaDiv.appendChild(div);
-            });
         }
 
-        function avviaNoleggioMock(idMezzo) {
-            sessionStorage.setItem("noleggioAttivo", "true");
+        function avviaNoleggio(idMezzo) {
+            // Qui inseriremo la logica di UPDATE su Supabase per cambiare lo stato del veicolo
             sessionStorage.setItem("idMezzo", idMezzo);
-            alert(`Richiesta di sblocco inviata per il mezzo ${idMezzo}. Apertura porte/lucchetto avviata.`);
-            window.location.replace('noleggio-attivo.html');
+            alert(`Richiesta inviata per il mezzo ${idMezzo}.`);
+            window.location.href = 'noleggio-attivo.html';
         }
     </script>
 </body>
