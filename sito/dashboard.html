@@ -20,7 +20,6 @@
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
-        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
     </style>
 </head>
 <body>
@@ -47,17 +46,15 @@
         </div>
         <div class="map-wrapper"><div id="map"></div></div>
     </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20] });
-        let markers = [];
 
         window.onload = async () => {
-            setTimeout(() => map.invalidateSize(), 500);
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
                 const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
@@ -68,9 +65,10 @@
 
         async function caricaVeicoliFlotta() {
             const { data: veicoli } = await supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
-            document.getElementById("lista-veicoli").innerHTML = "";
+            const div = document.getElementById("lista-veicoli");
+            div.innerHTML = "";
             veicoli?.forEach(v => {
-                document.getElementById("lista-veicoli").innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
+                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
             });
         }
 
@@ -78,19 +76,42 @@
             const COSTO = 2.50;
             const { data: { user } } = await supabaseClient.auth.getUser();
             const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
+            
             if (utente.wallet_balance < COSTO) { alert("Credito insufficiente"); return; }
             if (!confirm(`Confermi il noleggio di ${codiceMezzo}?`)) return;
 
             try {
-                await supabaseClient.from("noleggi").insert([{
+                // 1. Inserisci Noleggio
+                const { error: errNoleggio } = await supabaseClient.from("noleggi").insert([{
                     utente_id: user.id, veicolo_id: codiceMezzo, data_inizio: new Date().toISOString(), stato: 'Attivo', costo_totale: COSTO
                 }]);
-                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
-                await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
-                alert("Noleggio avviato!");
+                if (errNoleggio) throw new Error("Errore tabella noleggi: " + errNoleggio.message);
+
+                // 2. Aggiorna Veicolo
+                const { error: errVeicolo } = await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
+                if (errVeicolo) throw new Error("Errore tabella veicoli: " + errVeicolo.message);
+
+                // 3. Aggiorna Wallet
+                const { error: errWallet } = await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
+                if (errWallet) throw new Error("Errore tabella utenti: " + errWallet.message);
+
+                // 4. Inserisci Transazione (Punto critico)
+                const { error: errTrans } = await supabaseClient.from("storico_transazioni").insert([{ 
+                    user_id: user.id, 
+                    codice_mezzo: codiceMezzo, 
+                    importo: -COSTO, 
+                    descrizione: `Noleggio ${codiceMezzo}` 
+                }]);
+                if (errTrans) throw new Error("Errore tabella storico_transazioni: " + errTrans.message);
+
+                alert("Noleggio avviato con successo!");
                 window.location.href = "noleggio-attivo.html";
-            } catch (err) { alert(err.message); }
+            } catch (err) { 
+                console.error("Dettaglio Errore:", err);
+                alert(err.message); 
+            }
         }
+
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
