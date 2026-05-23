@@ -1,3 +1,6 @@
+Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar ora mostra Nome Cognome prendendoli prima da `user.user_metadata`, poi prova a recuperarli dalla tabella `utenti`, poi da `profiles`. Il colore resta `#ff5722`, logo e icone mantenuti. Codice basato sul file HTML che hai incollato. 
+
+```html id="dashboard-mappa-veicoli-nome-cognome"
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -288,7 +291,7 @@
         </div>
 
         <div class="nav-menu">
-            <span class="nav-user" id="utente-loggato">Utente</span>
+            <span class="nav-user" id="utente-loggato">Caricamento...</span>
             <a href="noleggio-attivo.html" class="nav-item">🚗 Noleggio</a>
             <a href="wallet.html" class="nav-item">💳 Wallet</a>
             <a href="segnalazione.html" class="nav-item">⚠️ Segnalazioni</a>
@@ -343,19 +346,100 @@
                 return;
             }
 
-            caricaNomeUtente(data.session.user);
+            await caricaNomeCognomeUtente(data.session.user);
             caricaVeicoliFlotta();
         }
 
-        function caricaNomeUtente(user) {
+        async function caricaNomeCognomeUtente(user) {
             const elementoUtente = document.getElementById("utente-loggato");
+
             const metadata = user.user_metadata || {};
 
-            const nome = String(metadata.nome || metadata.Nome || "").trim();
-            const cognome = String(metadata.cognome || metadata.Cognome || "").trim();
-            const nomeCompleto = `${nome} ${cognome}`.trim();
+            let nome = String(
+                metadata.nome ||
+                metadata.Nome ||
+                metadata.first_name ||
+                metadata.firstName ||
+                ""
+            ).trim();
 
-            elementoUtente.innerText = nomeCompleto || "Utente";
+            let cognome = String(
+                metadata.cognome ||
+                metadata.Cognome ||
+                metadata.last_name ||
+                metadata.lastName ||
+                ""
+            ).trim();
+
+            if (nome && cognome) {
+                elementoUtente.innerText = `${nome} ${cognome}`;
+                return;
+            }
+
+            const profiloDaTabellaUtenti = await cercaProfiloUtente("utenti", user.id, user.email);
+
+            if (profiloDaTabellaUtenti) {
+                nome = String(profiloDaTabellaUtenti.nome || profiloDaTabellaUtenti.Nome || "").trim();
+                cognome = String(profiloDaTabellaUtenti.cognome || profiloDaTabellaUtenti.Cognome || "").trim();
+
+                if (nome && cognome) {
+                    elementoUtente.innerText = `${nome} ${cognome}`;
+                    return;
+                }
+            }
+
+            const profiloDaTabellaProfiles = await cercaProfiloUtente("profiles", user.id, user.email);
+
+            if (profiloDaTabellaProfiles) {
+                nome = String(profiloDaTabellaProfiles.nome || profiloDaTabellaProfiles.Nome || "").trim();
+                cognome = String(profiloDaTabellaProfiles.cognome || profiloDaTabellaProfiles.Cognome || "").trim();
+
+                if (nome && cognome) {
+                    elementoUtente.innerText = `${nome} ${cognome}`;
+                    return;
+                }
+            }
+
+            elementoUtente.innerText = "Utente";
+        }
+
+        async function cercaProfiloUtente(nomeTabella, userId, email) {
+            try {
+                let risultato = await supabaseClient
+                    .from(nomeTabella)
+                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
+                    .eq("id", userId)
+                    .maybeSingle();
+
+                if (risultato.data && !risultato.error) {
+                    return risultato.data;
+                }
+
+                risultato = await supabaseClient
+                    .from(nomeTabella)
+                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
+                    .eq("user_id", userId)
+                    .maybeSingle();
+
+                if (risultato.data && !risultato.error) {
+                    return risultato.data;
+                }
+
+                risultato = await supabaseClient
+                    .from(nomeTabella)
+                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
+                    .eq("email", email)
+                    .maybeSingle();
+
+                if (risultato.data && !risultato.error) {
+                    return risultato.data;
+                }
+
+                return null;
+
+            } catch (e) {
+                return null;
+            }
         }
 
         async function logout() {
@@ -408,6 +492,8 @@
                         coloreBatteria = "#f44336";
                     }
 
+                    const codiceMezzo = String(mezzo.codice || "");
+
                     const div = document.createElement("div");
                     div.className = "vehicle-box";
 
@@ -420,10 +506,10 @@
                         </div>
 
                         <p style="color: var(--text-muted); font-size: 13px;">
-                            Codice: ${escapeHTML(mezzo.codice || "N/D")}
+                            Codice: ${escapeHTML(codiceMezzo || "N/D")}
                         </p>
 
-                        <button class="btn-rent" onclick="avviaNoleggio('${escapeHTML(mezzo.codice || "")}')">
+                        <button class="btn-rent" onclick="avviaNoleggio('${escapeJS(codiceMezzo)}')">
                             Noleggia Mezzo
                         </button>
                     `;
@@ -468,6 +554,15 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        function escapeJS(value) {
+            return String(value)
+                .replaceAll("\\", "\\\\")
+                .replaceAll("'", "\\'")
+                .replaceAll('"', '\\"')
+                .replaceAll("\n", "\\n")
+                .replaceAll("\r", "\\r");
         }
     </script>
 
