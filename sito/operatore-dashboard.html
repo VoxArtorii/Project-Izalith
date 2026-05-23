@@ -12,9 +12,7 @@
         
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { color: var(--primary-orange); font-weight: bold; font-size: 18px; }
-        
         .user-area { display: flex; align-items: center; gap: 15px; }
-        .user-icon { width: 32px; height: 32px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; }
         .btn-logout { background: var(--primary-orange); border: none; color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
         
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
@@ -35,7 +33,6 @@
     <nav class="app-navbar">
         <div class="nav-brand">IZALITH - BACKOFFICE LOGISTICA [BA-01]</div>
         <div class="user-area">
-            <div class="user-icon">👤</div>
             <span id="user-email" style="font-size: 13px;"></span>
             <button class="btn-logout" onclick="logout()">Esci</button>
         </div>
@@ -43,13 +40,13 @@
 
     <div class="workspace">
         <div class="top-section">
-            <div class="sidebar-fleet" id="lista-veicoli-operatore"></div>
+            <div class="sidebar-fleet" id="lista-veicoli-operatore">Caricamento veicoli...</div>
             <div id="map"></div>
         </div>
         <div class="bottom-section">
             <table>
                 <thead><tr><th>Area</th><th>Categoria</th><th>Descrizione</th><th>Data</th></tr></thead>
-                <tbody id="corpo-tabella-operatore"></tbody>
+                <tbody id="corpo-tabella-operatore"><tr><td colspan="4">Caricamento segnalazioni...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -57,37 +54,52 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Utilizziamo un nome diverso per il client (supabaseClient) per evitare conflitti con la libreria
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function init() {
             // 1. Inizializzazione Mappa
-            const map = L.map('map').setView([41.1171, 16.8719], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            try {
+                const map = L.map('map').setView([41.1171, 16.8719], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                
+                // 2. Carica Email
+                const { data: session } = await supabaseClient.auth.getSession();
+                if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
 
-            // 2. Carica Email
-            const { data: session } = await supabaseClient.auth.getSession();
-            if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
+                // 3. Carica Veicoli
+                const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
+                const lista = document.getElementById("lista-veicoli-operatore");
+                lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
+                if (veicoli) {
+                    veicoli.forEach(v => {
+                        lista.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%</div>`;
+                        if(v.latitudine) L.marker([v.latitudine, v.longitudine]).addTo(map);
+                    });
+                }
+            } catch (e) { console.error("Errore Mappa/Veicoli:", e); }
 
-            // 3. Carica Veicoli
-            const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
-            const lista = document.getElementById("lista-veicoli-operatore");
-            lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
-            veicoli?.forEach(v => {
-                lista.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%</div>`;
-                if(v.latitudine) L.marker([v.latitudine, v.longitudine]).addTo(map);
-            });
+            // 4. Carica Segnalazioni (con protezione)
+            try {
+                const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*');
+                const corpo = document.getElementById("corpo-tabella-operatore");
+                
+                if (error) throw error;
 
-            // 4. Carica Segnalazioni
-            const { data: ticket } = await supabaseClient.from('segnalazioni').select('*');
-            const corpo = document.getElementById("corpo-tabella-operatore");
-            const filtrati = ticket?.filter(t => String(t.categoria).toLowerCase().includes('tecnica'));
-            
-            corpo.innerHTML = filtrati?.map(t => 
-                `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td><td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/D'}</td></tr>`
-            ).join('') || "<tr><td colspan='4'>Nessuna segnalazione tecnica trovata.</td></tr>";
+                const filtrati = ticket?.filter(t => t.categoria && String(t.categoria).toLowerCase().includes('tecnica'));
+                
+                if (filtrati && filtrati.length > 0) {
+                    corpo.innerHTML = filtrati.map(t => 
+                        `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td><td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/D'}</td></tr>`
+                    ).join('');
+                } else {
+                    corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione tecnica trovata.</td></tr>";
+                }
+            } catch (err) {
+                console.error("ERRORE SEGNALAZIONI:", err);
+                document.getElementById("corpo-tabella-operatore").innerHTML = "<tr><td colspan='4'>Errore nel caricamento dati.</td></tr>";
+            }
         }
 
         window.onload = init;
