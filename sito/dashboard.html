@@ -20,6 +20,7 @@
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
     </style>
 </head>
 <body>
@@ -75,40 +76,45 @@
         async function avviaNoleggio(codiceMezzo) {
             const COSTO = 2.50;
             const { data: { user } } = await supabaseClient.auth.getUser();
-            const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
             
+            // 1. Recupero utente
+            const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
             if (utente.wallet_balance < COSTO) { alert("Credito insufficiente"); return; }
             if (!confirm(`Confermi il noleggio di ${codiceMezzo}?`)) return;
 
             try {
-                // 1. Inserisci Noleggio
-                const { error: errNoleggio } = await supabaseClient.from("noleggi").insert([{
-                    utente_id: user.id, veicolo_id: codiceMezzo, data_inizio: new Date().toISOString(), stato: 'Attivo', costo_totale: COSTO
-                }]);
-                if (errNoleggio) throw new Error("Errore tabella noleggi: " + errNoleggio.message);
-
-                // 2. Aggiorna Veicolo
-                const { error: errVeicolo } = await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
-                if (errVeicolo) throw new Error("Errore tabella veicoli: " + errVeicolo.message);
-
-                // 3. Aggiorna Wallet
-                const { error: errWallet } = await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
-                if (errWallet) throw new Error("Errore tabella utenti: " + errWallet.message);
-
-                // 4. Inserisci Transazione (Punto critico)
-                const { error: errTrans } = await supabaseClient.from("storico_transazioni").insert([{ 
+                // A. Noleggi
+                await supabaseClient.from("noleggi").insert([{ utente_id: user.id, veicolo_id: codiceMezzo, data_inizio: new Date().toISOString(), stato: 'Attivo', costo_totale: COSTO }]);
+                
+                // B. Veicoli
+                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
+                
+                // C. Wallet
+                await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
+                
+                // D. Storico (DEBUG AGGIUNTO)
+                console.log("Inizio inserimento storico_transazioni...");
+                const payload = { 
                     user_id: user.id, 
                     codice_mezzo: codiceMezzo, 
                     importo: -COSTO, 
                     descrizione: `Noleggio ${codiceMezzo}` 
-                }]);
-                if (errTrans) throw new Error("Errore tabella storico_transazioni: " + errTrans.message);
-
-                alert("Noleggio avviato con successo!");
-                window.location.href = "noleggio-attivo.html";
+                };
+                console.log("Payload inviato:", payload);
+                
+                const { data, error } = await supabaseClient.from("storico_transazioni").insert([payload]);
+                
+                if (error) {
+                    console.error("ERRORE CRITICO SUPABASE:", error);
+                    alert("Errore salvataggio storico (guarda console): " + error.message);
+                } else {
+                    console.log("Inserimento storico riuscito:", data);
+                    alert("Noleggio avviato!");
+                    window.location.href = "noleggio-attivo.html";
+                }
             } catch (err) { 
-                console.error("Dettaglio Errore:", err);
-                alert(err.message); 
+                console.error("Eccezione catturata:", err);
+                alert("Errore nel processo: " + err.message); 
             }
         }
 
