@@ -18,7 +18,7 @@
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-size: 13px; font-weight: 600; color: #BBB; }
         
-        /* Input scuri e correzione autofill */
+        /* Input scuri e correzione autofill browser */
         .form-group input { background: #121212 !important; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white !important; font-size: 14px; }
         input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
             -webkit-box-shadow: 0 0 0px 1000px #121212 inset !important;
@@ -47,12 +47,14 @@
             <h2>Crea il tuo Profilo</h2>
             <form id="reg-form">
                 <div id="status-box" class="status-message"></div>
-                <div class="form-group"><label>Nome</label><input type="text" id="nome" required></div>
-                <div class="form-group"><label>Cognome</label><input type="text" id="cognome" required></div>
-                <div class="form-group full-width"><label>Email</label><input type="email" id="email" required></div>
-                <div class="form-group full-width"><label>Codice Fiscale</label><input type="text" id="cf" required maxlength="16"></div>
-                <div class="form-group"><label>Password</label><input type="password" id="pass" required minlength="6"></div>
-                <div class="form-group"><label>Conferma</label><input type="password" id="pass-conf" required minlength="6"></div>
+                
+                <div class="form-group"><label>Nome</label><input type="text" id="nome" required placeholder="Es. Mario"></div>
+                <div class="form-group"><label>Cognome</label><input type="text" id="cognome" required placeholder="Es. Rossi"></div>
+                <div class="form-group full-width"><label>Email</label><input type="email" id="email" required placeholder="esempio@email.com"></div>
+                <div class="form-group full-width"><label>Codice Fiscale</label><input type="text" id="cf" required maxlength="16" placeholder="Codice Fiscale"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="pass" required minlength="6" placeholder="••••••••"></div>
+                <div class="form-group"><label>Conferma Password</label><input type="password" id="pass-conf" required minlength="6" placeholder="••••••••"></div>
+                
                 <button type="submit" id="btn-submit" class="btn-submit">Registrati</button>
             </form>
         </div>
@@ -60,7 +62,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Inizializzazione univoca del client
+        // Inizializzazione client (con nome univoco per evitare conflitti)
         const supabaseClient = supabase.createClient(
             "https://iqadvwrvmecpetuqpysn.supabase.co", 
             "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
@@ -77,6 +79,7 @@
             const pass = document.getElementById("pass").value;
             const passConf = document.getElementById("pass-conf").value;
 
+            // Controllo corrispondenza password
             if (pass !== passConf) {
                 statusBox.innerText = "Errore: Le password non coincidono.";
                 statusBox.className = "status-message error-style";
@@ -96,7 +99,7 @@
                 
                 if (authErr) throw authErr;
 
-                // 2. Scrittura profilo nel DB
+                // 2. Scrittura profilo nel DB (usando l'ID restituito dall'auth)
                 const { error: dbErr } = await supabaseClient.from('utenti').insert([{
                     id: auth.user.id,
                     nome: document.getElementById("nome").value,
