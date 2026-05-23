@@ -6,19 +6,26 @@
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #121212; color: white; min-height: 100vh; display: flex; flex-direction: column; }
         
+        /* Navbar */
         .navbar { background: #000; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FF5722; }
         .title { color: #FF5722; font-weight: bold; font-size: 1.1em; }
         .btn-back { background-color: #333; color: white; border: none; padding: 6px 20px; cursor: pointer; border-radius: 2px; }
+        .btn-back:hover { background-color: #444; }
         
+        /* Container */
         .main-container { padding: 30px; max-width: 900px; margin: auto; width: 100%; }
-        .card { background: #1a1a1a; padding: 25px; border-radius: 8px; border: 1px solid #333; margin-bottom: 20px; }
+        .card { background: #1a1a1a; padding: 25px; border-radius: 4px; border: 1px solid #333; margin-bottom: 20px; }
+        h2, h3 { color: #fff; margin-top: 0; }
         
-        input, select, textarea { width: 100%; padding: 10px; margin: 10px 0; background: #222; border: 1px solid #444; color: white; border-radius: 4px; }
-        .btn-save { background-color: #FF5722; color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; width: 100%; }
+        /* Form */
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #444; color: white; border-radius: 4px; box-sizing: border-box; }
+        .btn-save { background-color: #FF5722; color: white; border: none; padding: 12px; cursor: pointer; font-weight: bold; width: 100%; border-radius: 2px; }
+        .btn-save:hover { background-color: #e64a19; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; padding: 12px; border-bottom: 2px solid #333; color: #FF5722; }
-        td { padding: 12px; border-bottom: 1px solid #333; }
+        /* Tabella */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; color: #ccc; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #444; color: #888; text-transform: uppercase; font-size: 12px; }
+        td { padding: 12px; border-bottom: 1px solid #333; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -30,7 +37,7 @@
 
     <div class="main-container">
         <div class="card">
-            <h2 id="veicolo-nome">Caricamento veicolo...</h2>
+            <h2 id="veicolo-nome">Caricamento...</h2>
             <div id="info-veicolo"></div>
         </div>
 
@@ -43,7 +50,7 @@
                     <option value="Verifica">Verifica Tecnica</option>
                     <option value="Pulizia">Pulizia/Sanificazione</option>
                 </select>
-                <textarea id="descrizione" placeholder="Descrizione dettagliata dell'intervento..." required></textarea>
+                <textarea id="descrizione" rows="3" placeholder="Descrizione dettagliata dell'intervento..." required></textarea>
                 <button type="submit" class="btn-save">SALVA INTERVENTO</button>
             </form>
         </div>
@@ -64,11 +71,16 @@
         const vehicleId = urlParams.get('id');
 
         async function init() {
+            if (!vehicleId) {
+                document.getElementById('veicolo-nome').innerText = "Errore: Veicolo non selezionato.";
+                return;
+            }
+
             // 1. Carica dati veicolo
             const { data: v } = await client.from('veicoli').select('*').eq('id', vehicleId).single();
             if(v) {
                 document.getElementById('veicolo-nome').innerText = v.nome;
-                document.getElementById('info-veicolo').innerHTML = `<b>Stato:</b> ${v.stato} | <b>Batteria:</b> ${v.batteria}% | <b>Tipo:</b> ${v.tipo}`;
+                document.getElementById('info-veicolo').innerHTML = `<b>Stato:</b> ${v.stato || 'N/D'} | <b>Batteria:</b> ${v.batteria}% | <b>Tipo:</b> ${v.tipo || 'N/D'}`;
             }
 
             caricaStorico();
@@ -77,20 +89,30 @@
         async function caricaStorico() {
             const { data: azioni } = await client.from('azioni_veicoli').select('*').eq('veicolo_id', vehicleId).order('created_at', {ascending: false});
             const corpo = document.getElementById('corpo-storico');
-            corpo.innerHTML = azioni?.map(a => 
-                `<tr><td>${a.created_at?.split('T')[0]}</td><td>${a.tipo_azione}</td><td>${a.descrizione}</td></tr>`
-            ).join('') || "<tr><td colspan='3'>Nessun intervento registrato.</td></tr>";
+            
+            if (azioni && azioni.length > 0) {
+                corpo.innerHTML = azioni.map(a => 
+                    `<tr><td>${a.created_at?.split('T')[0]}</td><td>${a.tipo_azione}</td><td>${a.descrizione}</td></tr>`
+                ).join('');
+            } else {
+                corpo.innerHTML = "<tr><td colspan='3'>Nessun intervento registrato.</td></tr>";
+            }
         }
 
         document.getElementById('form-azione').onsubmit = async (e) => {
             e.preventDefault();
-            await client.from('azioni_veicoli').insert([{
+            const { error } = await client.from('azioni_veicoli').insert([{
                 veicolo_id: vehicleId,
                 tipo_azione: document.getElementById('tipo-azione').value,
                 descrizione: document.getElementById('descrizione').value
             }]);
-            alert("Intervento salvato!");
-            location.reload();
+            
+            if (error) {
+                alert("Errore nel salvataggio: " + error.message);
+            } else {
+                alert("Intervento salvato correttamente!");
+                location.reload();
+            }
         };
 
         window.onload = init;
