@@ -49,7 +49,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const supabase = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        // Inizializzazione corretta con URL di base
+        const supabase = supabase.createClient(
+            "https://iqadvwrvmecpetuqpysn.supabase.co", 
+            "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
+        );
         
         document.getElementById('reg-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -73,11 +77,15 @@
             btn.innerText = "Caricamento...";
 
             try {
-                // 1. Auth
-                const { data: auth, error: authErr } = await supabase.auth.signUp({ email, password: pass });
+                // 1. Auth SignUp
+                const { data: auth, error: authErr } = await supabase.auth.signUp({ 
+                    email: email, 
+                    password: pass 
+                });
+                
                 if (authErr) throw authErr;
 
-                // 2. Database
+                // 2. Insert into 'utenti'
                 const { error: dbErr } = await supabase.from('utenti').insert([{
                     id: auth.user.id,
                     nome: document.getElementById("nome").value,
@@ -92,6 +100,8 @@
                 statusBox.innerText = "Registrazione completata!";
                 statusBox.className = "status-message success-style";
                 statusBox.style.display = "block";
+                
+                // Redirect immediato dopo 1 secondo
                 setTimeout(() => window.location.href = 'login-user.html', 1000);
 
             } catch (err) {
