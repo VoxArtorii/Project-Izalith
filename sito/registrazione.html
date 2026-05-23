@@ -26,8 +26,21 @@
         
         .btn-submit { grid-column: span 2; background-color: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 15px; transition: background 0.3s; }
         .btn-submit:hover { background-color: #E64A19; }
+        .btn-submit:disabled { background-color: #555; border: 1px solid var(--border-color); cursor: not-allowed; }
         .back-link { grid-column: span 2; text-align: center; font-size: 14px; margin-top: 15px; }
         .back-link a { color: var(--primary-orange); text-decoration: none; }
+
+        /* Stile dinamico per messaggi informativi e di errore */
+        .status-message {
+            grid-column: span 2;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .error-style { background: rgba(244, 67, 54, 0.1); border: 1px solid #f44336; color: #f44336; }
+        .success-style { background: rgba(76, 175, 80, 0.1); border: 1px solid #4CAF50; color: #4CAF50; }
     </style>
 </head>
 <body>
@@ -45,6 +58,8 @@
             <p class="subtitle">Inserisci i tuoi dati anagrafici e fiscali per abilitare l'account.</p>
             
             <form onsubmit="completato(event)">
+                <div id="status-box" class="status-message"></div>
+
                 <div class="form-group">
                     <label for="nome">Nome</label>
                     <input type="text" id="nome" required placeholder="Es. Luigi">
@@ -63,14 +78,14 @@
                 </div>
                 <div class="form-group">
                     <label for="pass">Password</label>
-                    <input type="password" id="pass" required placeholder="••••••••">
+                    <input type="password" id="pass" required placeholder="••••••••" minlength="6">
                 </div>
                 <div class="form-group">
                     <label for="pass-conf">Conferma Password</label>
-                    <input type="password" id="pass-conf" required placeholder="••••••••">
+                    <input type="password" id="pass-conf" required placeholder="••••••••" minlength="6">
                 </div>
                 
-                <button type="submit" class="btn-submit">Registrati e Attiva Profilo</button>
+                <button type="submit" id="btn-registrazione" class="btn-submit">Registrati e Attiva Profilo</button>
                 
                 <div class="back-link">
                     Hai già un account? <a href="login-user.html">Accedi qui</a>
@@ -79,11 +94,109 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        function completato(e) {
+        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+
+        async function completato(e) {
             e.preventDefault();
-            alert("Registrazione completata! Account creato nel rispetto degli standard qualitativi.");
-            window.location.href = 'login-user.html';
+
+            const nome = document.getElementById("nome").value.trim();
+            const cognome = document.getElementById("cognome").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const cf = document.getElementById("cf").value.trim().toUpperCase();
+            const password = document.getElementById("pass").value;
+            const passwordConf = document.getElementById("pass-conf").value;
+            
+            const statusBox = document.getElementById("status-box");
+            const btnSubmit = document.getElementById("btn-registrazione");
+
+            // Reset box messaggi
+            statusBox.style.display = "none";
+            statusBox.className = "status-message";
+
+            // Validazione client-side della corrispondenza password
+            if (password !== passwordConf) {
+                statusBox.innerText = "Errore: Le password inserite non corrispondono.";
+                statusBox.classList.add("error-style");
+                statusBox.style.display = "block";
+                return false;
+            }
+
+            // Blocco del pulsante per evitare click multipli durante il transito dei pacchetti
+            btnSubmit.innerText = "Elaborazione transazione di sicurezza...";
+            btnSubmit.disabled = true;
+
+            try {
+                // PASSO 1: Registrazione delle credenziali cifrate su Supabase Auth
+                const { data: registrazioneCloud, error: authError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    statusBox.innerText = "Errore di registrazione: " + traduciErrore(authError.message);
+                    statusBox.classList.add("error-style");
+                    statusBox.style.display = "block";
+                    btnSubmit.innerText = "Registrati e Attiva Profilo";
+                    btnSubmit.disabled = false;
+                    return false;
+                }
+
+                // Estrazione dell'UUID di sicurezza univoco generato dal backend
+                const accountUID = registrazioneCloud.user.id;
+
+                // PASSO 2: Scrittura sincrona nella tabella relazionale 'utenti' nello schema public
+                const { error: dbError } = await supabaseClient
+                    .from('utenti')
+                    .insert([
+                        {
+                            id: accountUID,
+                            nome: nome,
+                            cognome: cognome,
+                            codice_fiscale: cf,
+                            email: email,
+                            wallet_balance: 0.00 // Inizializzazione Wallet obbligatoria per Sprint 1
+                        }
+                    ]);
+
+                if (dbError) {
+                    statusBox.innerText = "Errore sincronizzazione profilo: " + dbError.message;
+                    statusBox.classList.add("error-style");
+                    statusBox.style.display = "block";
+                    btnSubmit.innerText = "Registrati e Attiva Profilo";
+                    btnSubmit.disabled = false;
+                    return false;
+                }
+
+                // PASSO 3: Flusso completato correttamente
+                statusBox.innerText = "Registrazione completata con successo! Profilo ed Eco-Wallet attivati.";
+                statusBox.classList.add("success-style");
+                statusBox.style.display = "block";
+
+                setTimeout(() => {
+                    window.location.href = 'login-user.html';
+                }, 2200);
+
+            } catch (err) {
+                statusBox.innerText = "Errore di transito dati. Controllare la connessione.";
+                statusBox.classList.add("error-style");
+                statusBox.style.display = "block";
+                btnSubmit.innerText = "Registrati e Attiva Profilo";
+                btnSubmit.disabled = false;
+            }
+
+            return false;
+        }
+
+        // Funzione per la pulizia dei messaggi nativi di errore di Postgres/Supabase
+        function traduciErrore(msg) {
+            if (msg.includes("User already registered")) {
+                return "Questo indirizzo email risulta già associato ad un profilo attivo.";
+            }
+            return msg;
         }
     </script>
 </body>
