@@ -19,6 +19,19 @@
         .btn-submit { width: 100%; background: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 15px; }
         .btn-submit:hover { background-color: #E64A19; }
         .btn-secondary-link { background: none; border: none; color: var(--primary-orange); cursor: pointer; font-size: 14px; text-decoration: none; display: block; margin: 10px auto; }
+        
+        /* Box per messaggi di errore */
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid #f44336;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -32,16 +45,18 @@
             </div>
             <h2>Accedi all'Eco-Sharing</h2>
             
+            <div id="error-box" class="error-message"></div>
+            
             <form onsubmit="return entra(event)">
                 <div class="form-group">
                     <label>Indirizzo Email</label>
-                    <input type="email" required placeholder="Inserisci la tua email">
+                    <input type="email" id="email-field" required placeholder="Inserisci la tua email">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" required placeholder="••••••••">
+                    <input type="password" id="password-field" required placeholder="••••••••">
                 </div>
-                <button type="submit" class="btn-submit">Accedi</button>
+                <button type="submit" id="submit-btn" class="btn-submit">Accedi</button>
             </form>
 
             <button class="btn-secondary-link" onclick="window.location.replace('registrazione.html')">Nuovo utente? Crea un account</button>
@@ -49,11 +64,65 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        function entra(e) { 
+        // Configurazione delle credenziali del Cloud Database di Project Izalith
+        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+
+        async function entra(e) { 
             e.preventDefault(); 
-            window.location.replace('dashboard.html'); 
+            
+            const email = document.getElementById("email-field").value.trim();
+            const password = document.getElementById("password-field").value;
+            const errorBox = document.getElementById("error-box");
+            const submitBtn = document.getElementById("submit-btn");
+
+            // Reset stato grafico precedente
+            errorBox.style.display = "none";
+            errorBox.innerText = "";
+            submitBtn.innerText = "Verifica credenziali...";
+            submitBtn.disabled = true;
+
+            try {
+                // Chiamata asincrona al servizio nativo Supabase Auth
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    // Gestione degli errori di credenziali errate o inesistenti
+                    errorBox.innerText = "Accesso negato: " + traduciErrore(error.message);
+                    errorBox.style.display = "block";
+                    submitBtn.innerText = "Accedi";
+                    submitBtn.disabled = false;
+                    return false;
+                }
+
+                // Autenticazione riuscita, reindirizzamento alla dashboard principale dell'utente
+                window.location.replace('dashboard.html');
+
+            } catch (err) {
+                errorBox.innerText = "Errore di connessione con il server di autenticazione.";
+                errorBox.style.display = "block";
+                submitBtn.innerText = "Accedi";
+                submitBtn.disabled = false;
+            }
+
             return false;
+        }
+
+        // Funzione ausiliaria per mostrare all'utente errori chiari in italiano
+        function traduciErrore(msg) {
+            if (msg.includes("Invalid login credentials")) {
+                return "Email o password errate.";
+            }
+            if (msg.includes("Email not confirmed")) {
+                return "L'indirizzo email non è ancora stato confermato.";
+            }
+            return msg;
         }
     </script>
 </body>
