@@ -3,33 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Izalith - Centro Segnalazioni</title>
+    <title>Izalith - Invia Segnalazione</title>
     <style>
-        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
-        
-        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
-        .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
-        .nav-menu { display: flex; gap: 15px; }
-        .nav-btn { background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 15px; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
-        .nav-btn:hover, .nav-btn.active { color: var(--primary-orange); }
-        
-        .form-wrap { max-width: 600px; margin: 40px auto; width: 100%; padding: 0 20px; }
-        .card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 30px; }
-        h2 { margin-bottom: 15px; font-weight: 600; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-        .form-group label { font-size: 13px; color: #CCC; }
-        .form-group select, .form-group textarea { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 15px; }
-        .form-group textarea { resize: vertical; min-height: 100px; }
-        .btn-send { background: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; font-size: 15px; }
+        :root {
+            --primary-orange: #FF5722;
+            --dark-bg: #121212;
+            --surface-card: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --border-color: #2C2C2C;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Navbar di Navigazione */
+        .app-navbar {
+            background-color: #0A0A0A;
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 15px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            color: var(--primary-orange);
+            background: rgba(255, 87, 34, 0.05);
+        }
+
+        /* Layout Principale */
+        .main-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .form-card {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 550px;
+            padding: 35px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+
+        /* Elementi del Form */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        .form-control {
+            background-color: #121212;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-light);
+            padding: 12px 14px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-orange);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        /* Pulsante di Invio */
+        .btn-submit {
+            background-color: var(--primary-orange);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .btn-submit:hover {
+            background-color: #E64A19;
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
 
     <nav class="app-navbar">
         <div class="nav-brand" onclick="window.location.replace('dashboard.html')">
-            <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/><polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/></svg>
+            <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
+            </svg>
             <span>IZALITH</span>
         </div>
         <div class="nav-menu">
@@ -37,52 +175,43 @@
             <button class="nav-btn" onclick="window.location.replace('wallet.html')">Il Mio Wallet</button>
             <button class="nav-btn" onclick="window.location.replace('noleggio-attivo.html')">Noleggio Attivo</button>
             <button class="nav-btn active" onclick="window.location.replace('segnalazione.html')">Invia Segnalazione</button>
+            <button class="nav-btn" style="color: #f44336;" onclick="window.location.replace('index.html')">Esci</button>
         </div>
     </nav>
 
-    <div class="form-wrap">
-        <div class="card">
-            <h2>Nuova Segnalazione di Sistema</h2>
+    <div class="main-container">
+        <div class="form-card">
+            <div class="form-title">Segnalazione Smart</div>
+            <div class="form-subtitle">Comunica anomalie sui mezzi o problemi di viabilità sul territorio urbano.</div>
+            
             <form onsubmit="return inviaTicket(event)">
+                
                 <div class="form-group">
-                    <label>Area Urbana Interessata</label>
-                    <select id="citta-segnalazione" required>
+                    <label for="citta-segnalazione">Area Urbana di Riferimento</label>
+                    <select id="citta-segnalazione" class="form-control" required>
                         <option value="Bari [BA-01]">Bari [BA-01]</option>
                         <option value="Foggia [FG-02]">Foggia [FG-02]</option>
                         <option value="Taranto [TA-03]">Taranto [TA-03]</option>
                     </select>
                 </div>
+
                 <div class="form-group">
-                    <label>Categoria dell'Anomalia</label>
-                    <select id="cat" required>
-                        <option value="Tecnica">🔧 Problema Tecnico del Mezzo (Assegnato a Operatore)</option>
-                        <option value="Ambientale / Viabilità">🚦 Dissesto / Stato dell'aria (Assegnato a PA)</option>
+                    <label for="cat">Categoria Problematica</label>
+                    <select id="cat" class="form-control" required>
+                        <option value="Tecnica">Tecnica (Guasto Mezzo, IoT offline, Batteria)</option>
+                        <option value="Ambientale / Viabilità">Ambientale / Viabilità (Ostruzione stradale, Sinistro)</option>
                     </select>
                 </div>
+
                 <div class="form-group">
-                    <label>Descrizione dell'Evento</label>
-                    <textarea id="desc" required placeholder="Inserisci tutti i dettagli..."></textarea>
+                    <label for="desc">Dettaglio della Segnalazione</label>
+                    <textarea id="desc" class="form-control" placeholder="Descrivi il problema riscontrato per consentire l'intervento di Operatori o Pubblica Amministrazione..." required></textarea>
                 </div>
-                <button type="submit" class="btn-send">Sottometti Segnalazione</button>
+
+                <button type="submit" class="btn-submit">Invia Segnalazione</button>
             </form>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        function inviaTicket(e) { 
-            e.preventDefault(); 
-            
-            let area = document.getElementById('citta-segnalazione').value;
-            let categoria = document.getElementById('cat').value;
-            let descrizione = document.getElementById('desc').value;
-            
-            let nuovaSegnalazione = { area: area, cat: categoria, desc: descrizione };
-            localStorage.setItem("ultimoTicket", JSON.stringify(nuovaSegnalazione));
-
-            alert("Segnalazione inviata con successo agli enti d'area."); 
-            window.location.replace('dashboard.html'); 
-            return false;
-        }
-    </script>
-</body>
-</html>
