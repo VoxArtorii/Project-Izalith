@@ -54,21 +54,16 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Uso un nome variabile diverso per evitare il conflitto con la libreria
         const dbClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         
         async function logout() { await dbClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function init() {
-            // 1. Inizializzazione Mappa
+            // Inizializzazione Mappa
             const map = L.map('map').setView([41.1171, 16.8719], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            // 2. Email Utente
-            const { data: session } = await dbClient.auth.getSession();
-            if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
-
-            // 3. Carica Veicoli
+            // Carica Veicoli
             const { data: veicoli } = await dbClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
@@ -77,22 +72,36 @@
                 if(v.latitudine) L.marker([v.latitudine, v.longitudine]).addTo(map);
             });
 
-            // 4. Carica Segnalazioni con FILTRO PULITO
-            const { data: ticket } = await dbClient.from('segnalazioni').select('*');
-            const corpo = document.getElementById("corpo-tabella-operatore");
-            
-            // FILTRO: trasforma tutto in minuscolo, toglie spazi, cerca "tecnica"
-            const filtrati = ticket?.filter(t => {
-                if (!t.categoria) return false;
-                return String(t.categoria).trim().toLowerCase() === "tecnica";
-            });
-            
-            if (filtrati && filtrati.length > 0) {
-                corpo.innerHTML = filtrati.map(t => 
-                    `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td><td>${new Date(t.created_at).toLocaleDateString()}</td></tr>`
-                ).join('');
-            } else {
-                corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione tecnica trovata.</td></tr>";
+            // 4. Carica Segnalazioni con DIAGNOSTICA
+            try {
+                const { data: ticket, error } = await dbClient.from('segnalazioni').select('*');
+                console.log("--- DEBUG SEGNALAZIONI ---");
+                console.log("Dati ricevuti dal DB:", ticket);
+                
+                const corpo = document.getElementById("corpo-tabella-operatore");
+                
+                if (error) throw error;
+                if (!ticket || ticket.length === 0) {
+                    corpo.innerHTML = "<tr><td colspan='4'>Database vuoto.</td></tr>";
+                    return;
+                }
+
+                // Stampa ogni categoria in console
+                ticket.forEach((t, i) => console.log(`Record ${i}: categoria = "${t.categoria}"`));
+
+                // Filtro (usiamo trim() per sicurezza)
+                const filtrati = ticket.filter(t => t.categoria && t.categoria.trim() === "Tecnica");
+                
+                if (filtrati.length > 0) {
+                    corpo.innerHTML = filtrati.map(t => 
+                        `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td><td>${new Date(t.created_at).toLocaleDateString()}</td></tr>`
+                    ).join('');
+                } else {
+                    corpo.innerHTML = "<tr><td colspan='4'>Nessun record corrisponde a 'Tecnica'.</td></tr>";
+                }
+            } catch (err) {
+                console.error("ERRORE CRITICO SEGNALAZIONI:", err);
+                document.getElementById("corpo-tabella-operatore").innerHTML = "<tr><td colspan='4'>Errore caricamento.</td></tr>";
             }
         }
 
