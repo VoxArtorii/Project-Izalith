@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Izalith - Operatore Logistica (Debug Mode)</title>
+    <title>Izalith - Operatore Logistica</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
@@ -32,7 +32,7 @@
 <body>
 
     <nav class="app-navbar">
-        <div class="nav-brand">IZALITH - DEBUG LOGISTICA</div>
+        <div class="nav-brand">IZALITH - BACKOFFICE LOGISTICA [BA-01]</div>
         <div class="user-area">
             <span id="user-email" style="font-size: 13px;"></span>
             <button class="btn-logout" onclick="logout()">Esci</button>
@@ -63,10 +63,7 @@
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function caricaDati() {
-            const { data: session } = await supabaseClient.auth.getSession();
-            if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
-
-            // 1. Carica Veicoli
+            // 1. Veicoli
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
@@ -75,29 +72,18 @@
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
             });
 
-            // 2. DIAGNOSTICA SEGNALAZIONI (Test Estremo)
-            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*');
+            // 2. Segnalazioni - Filtriamo solo per categoria 'Tecnica'
+            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*').eq('categoria', 'Tecnica');
             
             const corpo = document.getElementById("corpo-tabella-operatore");
-            
-            if (error) {
-                console.error("ERRORE DB:", error);
-                corpo.innerHTML = `<tr><td colspan='4'>Errore: ${error.message}</td></tr>`;
-            } else {
-                console.log("CONTENUTO TOTALE TABELLA SEGNALAZIONI:", ticket);
-                
-                if (!ticket || ticket.length === 0) {
-                    corpo.innerHTML = "<tr><td colspan='4'>LA TABELLA È VUOTA.</td></tr>";
-                } else {
-                    // Visualizziamo tutto per vedere cosa c'è davvero
-                    corpo.innerHTML = ticket.map(t => `
-                        <tr>
-                            <td>${t.area}</td>
-                            <td>${t.categoria}</td>
-                            <td>${t.descrizione}</td>
-                            <td>${t.created_at || 'N/D'}</td>
-                        </tr>`).join('');
-                }
+            if (ticket) {
+                corpo.innerHTML = ticket.map(t => `
+                    <tr>
+                        <td>${t.area}</td>
+                        <td>${t.categoria}</td>
+                        <td>${t.descrizione}</td>
+                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                    </tr>`).join('');
             }
         }
 
