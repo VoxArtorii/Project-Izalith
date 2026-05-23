@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Izalith - Console Operatore Flotta</title>
+    <title>Izalith - Portale Operatore di Logistica</title>
     <style>
         :root {
-            --primary-orange: #FF5722;
+            --primary-orange: #FF9800;
             --dark-bg: #121212;
             --surface-card: #1E1E1E;
             --text-light: #FFFFFF;
@@ -19,10 +19,9 @@
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
         
-        /* Layout Principale Diviso */
+        /* Split layout */
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
         
-        /* Sezione Superiore: Flotta + Mappa */
         .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; border-bottom: 2px solid var(--border-color); overflow: hidden; }
         
         .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
@@ -36,22 +35,19 @@
         .map-wrapper { width: 100%; height: 100%; background: #222; }
         .map-iframe { width: 100%; height: 100%; border: none; filter: grayscale(1) invert(1) contrast(1.2); }
         
-        /* Sezione Inferiore: Tabella Ticket */
         .bottom-section { background: var(--surface-card); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .table-header-row { display: flex; justify-content: space-between; align-items: center; }
         
         .btn-refresh { background: none; border: 1px solid var(--primary-orange); color: var(--primary-orange); padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; transition: all 0.2s; }
-        .btn-refresh:hover { background: rgba(255,87,34,0.1); }
+        .btn-refresh:hover { background: rgba(255,152,0,0.1); }
 
         .table-container { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: #121212; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         th { background-color: #0A0A0A; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 12px; }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background-color: rgba(255,255,255,0.01); }
-
+        
         .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; }
-        .badge-tech { background-color: rgba(255,87,34,0.15); color: var(--primary-orange); }
         .no-data { text-align: center; color: var(--text-muted); padding: 20px; font-size: 14px; }
     </style>
 </head>
@@ -60,10 +56,10 @@
     <nav class="app-navbar">
         <div class="nav-brand" onclick="window.location.reload()">
             <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF9800"/>
                 <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
             </svg>
-            <span>IZALITH - CONSOLE OPERATORE [BARI]</span>
+            <span>IZALITH - BACKOFFICE LOGISTICA [BA-01]</span>
         </div>
     </nav>
 
@@ -71,8 +67,8 @@
         
         <div class="top-section">
             <div class="sidebar-fleet">
-                <div class="section-title">Stato Flotta Urbana</div>
-                <p style="color: var(--text-muted); font-size: 12px;">Mezzi attualmente dislocati a Bari [BA-01]:</p>
+                <div class="section-title">Stato della Flotta</div>
+                <p style="color: var(--text-muted); font-size: 12px;">Mezzi assegnati alla squadra logistica BA-01:</p>
                 <div id="lista-veicoli-operatore">
                     </div>
             </div>
@@ -85,28 +81,25 @@
         <div class="bottom-section">
             <div class="table-header-row">
                 <div>
-                    <span class="section-title">Anomalie Hardware & Manutenzione</span>
-                    <span style="color: var(--text-muted); font-size: 13px; margin-left: 10px;">Solo segnalazioni di tipo tecnico filtrate per la zona di Bari.</span>
+                    <span class="section-title">Ticket Manutenzione Tecnica</span>
+                    <span style="color: var(--text-muted); font-size: 13px; margin-left: 10px;">Interventi urgenti su hardware, batterie e firmware.</span>
                 </div>
-                <button class="btn-refresh" onclick="sincronizzaConsoleOperatore()">🔄 Sincronizza Cloud</button>
+                <button class="btn-refresh" onclick="sincronizzaPortaleOperatore()">🔄 Aggiorna Logistica</button>
             </div>
 
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Area Urbana</th>
+                            <th>Area Logistica</th>
                             <th>Categoria</th>
-                            <th>Dettaglio Segnalazione</th>
+                            <th>Descrizione Segnalazione Hardware/Firmware</th>
                             <th>Data Ricezione</th>
                         </tr>
                     </thead>
                     <tbody id="corpo-tabella-operatore">
                         </tbody>
                 </table>
-                <div id="messaggio-vuoto" class="no-data" style="display: none;">
-                    Nessun guasto tecnico pendente nel database per Bari [BA-01].
-                </div>
             </div>
         </div>
 
@@ -118,33 +111,29 @@
         const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
         const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
 
-        // Flotta Mock di backup (verrà sostituita quando popoleremo la tabella dei veicoli su Supabase)
         const flottaMock = [
-            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 },
-            { codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 22 }, // Batteria scarica -> Richiede manutenzione
-            { codice: "Pattino-X1", tipo: "Monopattino", nome: "Izalith Speed", batteria: 45 }
+            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94, stato: "Disponibile" }
         ];
 
         window.onload = function() {
-            sincronizzaConsoleOperatore();
+            sincronizzaPortaleOperatore();
         };
 
-        function sincronizzaConsoleOperatore() {
-            scaricaFlottaUrbana();
+        function sincronizzaPortaleOperatore() {
+            scaricaFlottaOperatore();
             scaricaSegnalazioniTecniche();
         }
 
-        // 1. CARICAMENTO DEI MEZZI NELLA SIDEBAR
-        async function scaricaFlottaUrbana() {
+        async function scaricaFlottaOperatore() {
             const listaDiv = document.getElementById("lista-veicoli-operatore");
-            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Interrogazione telemetria...</p>';
+            if(!listaDiv) return;
+            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Sincronizzazione telemetria...</p>';
 
             try {
-                // Interroga la tabella dei veicoli filtrando per la zona di Bari
                 const { data: veicoliCloud, error } = await supabaseClient
                     .from('veicoli')
                     .select('*')
-                    .eq('area', 'Bari [BA-01]');
+                    .eq('area', 'BA-01');
 
                 let mezzi = (!error && veicoliCloud && veicoliCloud.length > 0) ? veicoliCloud : flottaMock;
                 
@@ -163,7 +152,7 @@
                             <strong>${icona} ${mezzo.nome || mezzo.codice}</strong>
                             <span class="battery-level" style="color: ${coloreBatteria}">${mezzo.batteria}%</span>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 12px;">ID Hardware: ${mezzo.codice}</p>
+                        <p style="color: var(--text-muted); font-size: 12px;">Stato: ${mezzo.stato} | Codice: ${mezzo.codice}</p>
                     `;
                     listaDiv.appendChild(div);
                 });
@@ -172,30 +161,22 @@
             }
         }
 
-        // 2. CARICAMENTO DELLE SEGNALAZIONI TECNICHE NELLA TABELLA IN BASSO
         async function scaricaSegnalazioniTecniche() {
             const corpoTabella = document.getElementById("corpo-tabella-operatore");
-            const messaggioVuoto = document.getElementById("messaggio-vuoto");
+            if(!corpoTabella) return;
             
-            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Verifica segnalazioni hardware...</td></tr>';
-            messaggioVuoto.style.display = "none";
+            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Sincronizzazione ticket tecnici...</td></tr>';
 
             try {
                 const { data: ticketTecnici, error } = await supabaseClient
                     .from('segnalazioni')
                     .select('*')
-                    .eq('area', 'Bari [BA-01]')
+                    .eq('area', 'BA-01')
                     .eq('categoria', 'Tecnica')
                     .order('id', { ascending: false });
 
-                if (error) {
-                    corpoTabella.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore Cloud: ${error.message}</td></tr>`;
-                    return;
-                }
-
-                if (!ticketTecnici || ticketTecnici.length === 0) {
-                    corpoTabella.innerHTML = "";
-                    messaggioVuoto.style.display = "block";
+                if (error || !ticketTecnici || ticketTecnici.length === 0) {
+                    corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Nessuna anomalia tecnica segnalata in quest\'area.</td></tr>';
                     return;
                 }
 
@@ -206,15 +187,15 @@
 
                     tr.innerHTML = `
                         <td><strong>${ticket.area}</strong></td>
-                        <td><span class="badge badge-tech">${ticket.categoria}</span></td>
-                        <td style="color: #E0E0E0; max-width: 500px; word-wrap: break-word;">${ticket.descrizione}</td>
+                        <td><span class="badge" style="background: rgba(244,67,54,0.15); color: #f44336;">${ticket.categoria}</span></td>
+                        <td style="color: #E0E0E0;">${ticket.descrizione}</td>
                         <td style="color: var(--text-muted); font-size: 13px;">${dataFormattata}</td>
                     `;
                     corpoTabella.appendChild(tr);
                 });
 
             } catch (err) {
-                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Connessione interrotta.</td></tr>';
+                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore di connessione.</td></tr>';
             }
         }
     </script>
