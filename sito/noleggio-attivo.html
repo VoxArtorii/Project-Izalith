@@ -8,6 +8,8 @@
         body { background: #121212; color: white; font-family: sans-serif; display: flex; justify-content: center; padding-top: 50px; }
         .card { background: #1E1E1E; padding: 30px; border-radius: 12px; width: 400px; text-align: center; }
         .btn-end { background: #f44336; color: white; border: none; padding: 15px; width: 100%; margin-top: 20px; border-radius: 8px; cursor: pointer; }
+        /* Aggiunto stile per il bottone motore */
+        .btn-toggle { background: #4CAF50; color: white; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -18,13 +20,16 @@
     <script>
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         
+        // Variabile di stato locale
+        let motoreAcceso = false;
+
         async function init() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             const { data: noleggio, error } = await supabaseClient.from("noleggi")
                 .select("*").eq("utente_id", user.id).eq("stato", "Attivo").single();
             
             if (error || !noleggio) {
-                document.getElementById("content").innerHTML = "<h3>Nessun noleggio attivo</h3><a href='dashboard.html'>Torna alla mappa</a>";
+                document.getElementById("content").innerHTML = "<h3>Nessun noleggio attivo</h3><a href='dashboard.html' style='color:white;'>Torna alla mappa</a>";
                 return;
             }
             
@@ -32,11 +37,36 @@
                 <h3>Noleggio in corso</h3>
                 <p>Veicolo: ${noleggio.veicolo_id}</p>
                 <p>Iniziato alle: ${new Date(noleggio.data_inizio).toLocaleTimeString()}</p>
+                
+                <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">ACCENDI MOTORE</button>
+                
                 <button class="btn-end" onclick="terminaNoleggio('${noleggio.veicolo_id}', ${noleggio.id})">TERMINA NOLEGGIO</button>
             `;
         }
 
+        // Funzione per gestire lo stato locale
+        function toggleMotore() {
+            const btn = document.getElementById("btn-motore");
+            motoreAcceso = !motoreAcceso;
+
+            if (motoreAcceso) {
+                btn.innerText = "SPEGNI MOTORE";
+                btn.style.background = "#f44336"; // Rosso
+                alert("Veicolo acceso!");
+            } else {
+                btn.innerText = "ACCENDI MOTORE";
+                btn.style.background = "#4CAF50"; // Verde
+                alert("Veicolo spento.");
+            }
+        }
+
         async function terminaNoleggio(codice, id) {
+            // Controllo di sicurezza
+            if (motoreAcceso) {
+                alert("⚠️ Errore: devi spegnere il motore prima di terminare il noleggio!");
+                return;
+            }
+
             try {
                 // 1. Aggiorna tabella noleggi
                 await supabaseClient.from("noleggi").update({ stato: "Concluso", data_fine: new Date().toISOString() }).eq("id", id);
@@ -46,6 +76,7 @@
                 window.location.href = "dashboard.html";
             } catch (err) { alert(err.message); }
         }
+        
         init();
     </script>
 </body>
