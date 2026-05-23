@@ -13,18 +13,13 @@
         .nav-menu { display: flex; gap: 24px; }
         .nav-menu a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 15px; }
         .nav-menu a:hover, .nav-menu a.active { color: var(--primary-orange); }
-        
         .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; }
         .card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 40px; text-align: center; max-width: 600px; width: 100%; }
-        
-        /* Box di allerta per noleggio assente */
         .alert-box { border-left: 5px solid #ffc107; background: #2d2410; padding: 20px; border-radius: 6px; text-align: left; margin-bottom: 25px; }
-        
         .telemetry-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0; text-align: left; }
         .metric-tile { background: #121212; border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; }
         .metric-val { font-size: 24px; font-weight: bold; color: var(--primary-orange); margin-top: 5px; }
-        
-        .btn { background: #d32f2f; color: white; border: none; padding: 14px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn { background: #d32f2f; color: white; border: none; padding: 14px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; width: 100%; }
         .btn-map-return { background: var(--primary-orange); color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; display: inline-block; font-weight: bold; margin-top: 15px; }
         .hidden { display: none !important; }
     </style>
@@ -48,44 +43,55 @@
         <div class="card" id="state-empty">
             <div class="alert-box">
                 <strong style="color: #ffc107; font-size: 18px;">⚠️ Nessun Viaggio in Corso</strong>
-                <p style="font-size: 14px; margin-top: 8px; color: #DDD;">Attualmente non risulta alcun veicolo sbloccato a tuo nome sulla rete cloud di Project Izalith.</p>
+                <p style="font-size: 14px; margin-top: 8px; color: #DDD;">Non risulta alcun veicolo sbloccato a tuo nome.</p>
             </div>
-            <p style="color: var(--text-muted); font-size: 15px;">Per avviare una corsa e visualizzare la telemetria dei consumi energetici, seleziona una vettura o un monopattino disponibile sulla griglia stradale.</p>
             <a href="dashboard.html" class="btn-map-return">Apri Mappa di Ricerca</a>
         </div>
 
         <div class="card hidden" id="state-active">
             <h2>Corsa in Corso Abilitata</h2>
-            <p style="color: var(--text-muted);" id="rented-vehicle-label">ID Risorsa IoT: Caricamento...</p>
-            
+            <p style="color: var(--text-muted);" id="rented-vehicle-label">Caricamento...</p>
             <div class="telemetry-dashboard">
                 <div class="metric-tile"><div>Tempo di Viaggio</div><div class="metric-val">04:12 min</div></div>
                 <div class="metric-tile"><div>Importo Maturato</div><div class="metric-val">€ 1,26</div></div>
                 <div class="metric-tile"><div>Velocità Veicolo</div><div class="metric-val">22 km/h</div></div>
                 <div class="metric-tile"><div>Stato Batteria</div><div class="metric-val" style="color:#4CAF50;">84%</div></div>
             </div>
-            
             <button class="btn" onclick="terminaCorsa()">Rilascia Mezzo e Paga</button>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Logica di verifica dello stato di noleggio
+        const SUPABASE_URL = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         window.onload = function() {
-            let isRenting = sessionStorage.getItem("noleggioAttivo");
             let vehicleId = sessionStorage.getItem("idMezzo");
-            
-            if(isRenting === "true") {
+            if(vehicleId) {
                 document.getElementById("state-empty").classList.add("hidden");
                 document.getElementById("state-active").classList.remove("hidden");
                 document.getElementById("rented-vehicle-label").innerText = "Hardware Node IoT Connesso: " + vehicleId;
             }
         }
 
-        function terminaCorsa() {
-            sessionStorage.removeItem("noleggioAttivo");
+        async function terminaCorsa() {
+            const vehicleId = sessionStorage.getItem("idMezzo");
+            
+            // Aggiorniamo lo stato nel DB
+            const { error } = await supabase
+                .from('veicoli')
+                .update({ stato: 'Disponibile' })
+                .eq('codice', vehicleId);
+
+            if (error) {
+                alert("Errore tecnico: impossibile terminare la corsa sul server.");
+                return;
+            }
+
             sessionStorage.removeItem("idMezzo");
-            alert("Segnale di blocco inviato all'attuatore del veicolo. Corsa terminata con successo.");
+            alert("Corsa terminata. Il mezzo è ora disponibile per altri utenti.");
             window.location.href = 'wallet.html';
         }
     </script>
