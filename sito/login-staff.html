@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Login Personale Qualificato</title>
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 40px; width: 100%; max-width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { text-align: center; margin-bottom: 5px; font-weight: 600; }
+        p.subtitle { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 25px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+        .form-group label { font-size: 13px; color: #BBB; }
+        .form-group input, .form-group select { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 15px; }
+        .btn-login { width: 100%; background: #333; color: white; border: 1px solid #555; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
+        .btn-login:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <h2>Portale Professionale</h2>
+            <p class="subtitle">Inserisci le credenziali crittografate fornite dall'amministratore.</p>
+            <form onsubmit="indirizzaStaff(event)">
+                <div class="form-group">
+                    <label>Seleziona Ruolo Operativo</label>
+                    <select id="ruolo-staff" required>
+                        <option value="pa">🏢 Pubblica Amministrazione (Ente Comunale)</option>
+                        <option value="operatore">🔧 Operatore di Servizio (Fleet Management)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ID Personale / Email</label>
+                    <input type="text" required placeholder="ID-Staff o Email Istituzionale">
+                </div>
+                <div class="form-group">
+                    <label>Password di Sicurezza</label>
+                    <input type="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-login">Effettua Autenticazione</button>
+                <div style="text-align:center; margin-top: 20px; font-size:14px;">
+                    <a href="index.html" style="color: var(--text-muted); text-decoration:none;">&larr; Indietro alla Home Pubblica</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        function indirizzaStaff(e) {
+            e.preventDefault();
+            let scelta = document.getElementById('ruolo-staff').value;
+            if(scelta === 'pa') {
+                window.location.href = 'pa-dashboard.html';
+            } else {
+                window.location.href = 'operatore-dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

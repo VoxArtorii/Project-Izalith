@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Registrazione Nuovo Utente</title>
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .header-simple { padding: 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0A0A0A; }
+        .reg-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+        
+        .reg-card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 35px; width: 100%; max-width: 550px; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+        h2 { font-size: 24px; margin-bottom: 8px; text-align: center; }
+        p.subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 25px; }
+        
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: span 2; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #BBB; }
+        .form-group input { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: var(--primary-orange); }
+        
+        .btn-submit { grid-column: span 2; background-color: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 15px; transition: background 0.3s; }
+        .btn-submit:hover { background-color: #E64A19; }
+        .back-link { grid-column: span 2; text-align: center; font-size: 14px; margin-top: 15px; }
+        .back-link a { color: var(--primary-orange); text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header-simple">
+        <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+            <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
+        </svg>
+    </div>
+
+    <div class="reg-container">
+        <div class="reg-card">
+            <h2>Crea il tuo Profilo Eco-Sharing</h2>
+            <p class="subtitle">Inserisci i tuoi dati anagrafici e fiscali per abilitare l'account.</p>
+            
+            <form onsubmit="completato(event)">
+                <div class="form-group">
+                    <label for="nome">Nome</label>
+                    <input type="text" id="nome" required placeholder="Es. Luigi">
+                </div>
+                <div class="form-group">
+                    <label for="cognome">Cognome</label>
+                    <input type="text" id="cognome" required placeholder="Es. Basile">
+                </div>
+                <div class="form-group full-width">
+                    <label for="email">Indirizzo Email</label>
+                    <input type="email" id="email" required placeholder="esempio@studenti.uniba.it">
+                </div>
+                <div class="form-group full-width">
+                    <label for="cf">Codice Fiscale (Obbligatorio per Normativa Legale)</label>
+                    <input type="text" id="cf" required placeholder="BSLLGU96A..." style="text-transform: uppercase;" maxlength="16" minlength="16">
+                </div>
+                <div class="form-group">
+                    <label for="pass">Password</label>
+                    <input type="password" id="pass" required placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label for="pass-conf">Conferma Password</label>
+                    <input type="password" id="pass-conf" required placeholder="••••••••">
+                </div>
+                
+                <button type="submit" class="btn-submit">Registrati e Attiva Profilo</button>
+                
+                <div class="back-link">
+                    Hai già un account? <a href="login-user.html">Accedi qui</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function completato(e) {
+            e.preventDefault();
+            alert("Registrazione completata! Account creato nel rispetto degli standard qualitativi.");
+            window.location.href = 'login-user.html';
+        }
+    </script>
+</body>
+</html>

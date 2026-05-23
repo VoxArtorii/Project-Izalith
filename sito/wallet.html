@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Gestione Wallet</title>
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+        .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: white; font-weight: bold; font-size: 20px; }
+        .nav-menu { display: flex; gap: 24px; }
+        .nav-menu a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 15px; }
+        .nav-menu a:hover, .nav-menu a.active { color: var(--primary-orange); }
+        
+        .content-container { max-width: 900px; margin: 40px auto; padding: 0 20px; width: 100%; display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px; }
+        .card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 25px; }
+        .balance-display { font-size: 38px; font-weight: bold; color: var(--primary-orange); margin: 15px 0; }
+        
+        .input-money { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 16px; width: 100%; margin-bottom: 15px; }
+        .btn-pay { background: var(--primary-orange); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; }
+        
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        .history-table th, .history-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .history-table th { color: var(--text-muted); font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <nav class="app-navbar">
+        <a href="dashboard.html" class="nav-brand">
+            <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/><polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/></svg>
+            <span>IZALITH</span>
+        </a>
+        <div class="nav-menu">
+            <a href="dashboard.html">Esplora Mappa</a>
+            <a href="wallet.html" class="active">Il Mio Wallet</a>
+            <a href="noleggio-attivo.html">Noleggio Attivo</a>
+            <a href="segnalazione.html">Invia Segnalazione</a>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <div class="card">
+            <h3>Saldo Disponibile</h3>
+            <div class="balance-display">€ 18,50</div>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Tariffazione trasparente al minuto trattenuta direttamente dal portafoglio.</p>
+            
+            <h4>Ricarica Rapida</h4>
+            <input type="number" class="input-money" id="amount" value="10" min="5">
+            <button class="btn-pay" onclick="ricarica()">Ricarica con Carta</button>
+        </div>
+
+        <div class="card">
+            <h3>Storico Movimenti ed Addebiti</h3>
+            <table class="history-table">
+                <thead>
+                    <tr><th>Data</th><th>Descrizione</th><th>Importo</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Oggi</td><td>Noleggio Mezzo Auto-L01</td><td style="color:#f44336;">- € 3,50</td></tr>
+                    <tr><td>18/05/2026</td><td>Ricarica Account (PayPal)</td><td style="color:#4CAF50;">+ € 20,00</td></tr>
+                    <tr><td>12/05/2026</td><td>Noleggio Mezzo Scooter-E9</td><td style="color:#f44336;">- € 1,80</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function ricarica() {
+            let val = document.getElementById('amount').value;
+            alert("Inoltro al Gateway Bancario PCI-DSS esterno protetto. Caricamento in corso di €" + val);
+        }
+    </script>
+</body>
+</html>

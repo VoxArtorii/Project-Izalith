@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Login Utente</title>
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        .container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .logo-center { text-align: center; margin-bottom: 20px; cursor: pointer; }
+        h2 { text-align: center; margin-bottom: 25px; font-weight: 600; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+        .form-group label { font-size: 13px; color: #BBB; }
+        .form-group input { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 15px; }
+        .form-group input:focus { outline: none; border-color: var(--primary-orange); }
+        .btn-submit { width: 100%; background: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 15px; }
+        .btn-submit:hover { background-color: #E64A19; }
+        .btn-secondary-link { background: none; border: none; color: var(--primary-orange); cursor: pointer; font-size: 14px; text-decoration: none; display: block; margin: 10px auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="logo-center" onclick="window.location.replace('index.html')">
+                <svg width="50" height="50" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                    <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
+                </svg>
+            </div>
+            <h2>Accedi all'Eco-Sharing</h2>
+            
+            <form onsubmit="return entra(event)">
+                <div class="form-group">
+                    <label>Indirizzo Email</label>
+                    <input type="email" required placeholder="Inserisci la tua email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-submit">Accedi</button>
+            </form>
+
+            <button class="btn-secondary-link" onclick="window.location.replace('registrazione.html')">Nuovo utente? Crea un account</button>
+            <button class="btn-secondary-link" style="color: #888;" onclick="window.location.replace('index.html')">← Torna alla Home generale</button>
+        </div>
+    </div>
+
+    <script>
+        function entra(e) { 
+            e.preventDefault(); 
+            window.location.replace('dashboard.html'); 
+            return false;
+        }
+    </script>
+</body>
+</html>
