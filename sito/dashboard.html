@@ -74,11 +74,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const SUPABASE_URL = "https://iqadvwrvmecpetuqpysn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Rinominato in supabaseClient per evitare conflitti
+        const supabaseClient = supabase.createClient(
+            "https://iqadvwrvmecpetuqpysn.supabase.co", 
+            "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
+        );
 
-        window.onload = function() { caricaVeicoliFlotta(); };
+        window.onload = function() { 
+            // Controllo sicurezza: se l'utente non è loggato, manda al login
+            supabaseClient.auth.getSession().then(({ data }) => {
+                if (!data.session) {
+                    window.location.href = 'login-user.html';
+                } else {
+                    caricaVeicoliFlotta();
+                }
+            });
+        };
 
         async function caricaVeicoliFlotta() {
             const listaDiv = document.getElementById("lista-veicoli");
@@ -87,7 +98,7 @@
             listaDiv.innerHTML = '<p class="no-vehicles">Sincronizzazione flotta...</p>';
 
             try {
-                let query = supabase.from('veicoli').select('*').eq('area_competenza', 'BA-01').eq('stato', 'Disponibile');
+                let query = supabaseClient.from('veicoli').select('*').eq('area_competenza', 'BA-01').eq('stato', 'Disponibile');
                 if (tipoSelezionato !== "Tutti") query = query.eq('tipo', tipoSelezionato);
                 
                 const { data: veicoli, error } = await query;
@@ -108,19 +119,19 @@
                             <span class="battery-level" style="color: ${mezzo.batteria < 30 ? '#f44336' : '#4CAF50'}">${mezzo.batteria}%</span>
                         </div>
                         <p style="color: var(--text-muted); font-size: 13px;">Codice: ${mezzo.codice}</p>
-                        <button class="btn-rent" onclick="avviaNoleggio('${mezzo.codice}')">Noleggia Mezzo</button>
+                        <button class="btn-submit btn-rent" onclick="avviaNoleggio('${mezzo.codice}')">Noleggia Mezzo</button>
                     `;
                     listaDiv.appendChild(div);
                 });
             } catch (e) {
-                listaDiv.innerHTML = '<p class="no-vehicles">Errore di connessione al database.</p>';
+                listaDiv.innerHTML = '<p class="no-vehicles">Errore di connessione.</p>';
             }
         }
 
         async function avviaNoleggio(codiceMezzo) {
             if (!confirm(`Confermi di voler noleggiare il mezzo ${codiceMezzo}?`)) return;
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('veicoli')
                 .update({ stato: 'In uso' })
                 .eq('codice', codiceMezzo);
