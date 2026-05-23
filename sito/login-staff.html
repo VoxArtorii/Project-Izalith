@@ -15,8 +15,22 @@
         .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
         .form-group label { font-size: 13px; color: #BBB; }
         .form-group input, .form-group select { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 15px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary-orange); }
         .btn-login { width: 100%; background: #333; color: white; border: 1px solid #555; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
         .btn-login:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
+        
+        /* Box per messaggi di errore */
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid #f44336;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -24,37 +38,111 @@
         <div class="login-card">
             <h2>Portale Professionale</h2>
             <p class="subtitle">Inserisci le credenziali crittografate fornite dall'amministratore.</p>
+            
+            <div id="error-box" class="error-message"></div>
+
             <form onsubmit="indirizzaStaff(event)">
                 <div class="form-group">
                     <label>Seleziona Ruolo Operativo</label>
                     <select id="ruolo-staff" required>
-                        <option value="pa">🏢 Pubblica Amministrazione (Ente Comunale)</option>
-                        <option value="operatore">🔧 Operatore di Servizio (Fleet Management)</option>
+                        <option value="PA">🏢 Pubblica Amministrazione (Ente Comunale)</option>
+                        <option value="Operatore">🔧 Operatore di Servizio (Fleet Management)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>ID Personale / Email</label>
-                    <input type="text" required placeholder="ID-Staff o Email Istituzionale">
+                    <label>Email Istituzionale</label>
+                    <input type="email" id="email-field" required placeholder="nome.cognome@email.it">
                 </div>
                 <div class="form-group">
                     <label>Password di Sicurezza</label>
-                    <input type="password" required placeholder="••••••••">
+                    <input type="password" id="password-field" required placeholder="••••••••">
                 </div>
-                <button type="submit" class="btn-login">Effettua Autenticazione</button>
+                <button type="submit" id="submit-btn" class="btn-login">Effettua Autenticazione</button>
                 <div style="text-align:center; margin-top: 20px; font-size:14px;">
                     <a href="index.html" style="color: var(--text-muted); text-decoration:none;">&larr; Indietro alla Home Pubblica</a>
                 </div>
             </form>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        function indirizzaStaff(e) {
+        // Configurazione Cloud Database di Project Izalith
+        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+
+        async function indirizzaStaff(e) {
             e.preventDefault();
-            let scelta = document.getElementById('ruolo-staff').value;
-            if(scelta === 'pa') {
-                window.location.href = 'pa-dashboard.html';
-            } else {
-                window.location.href = 'operatore-dashboard.html';
+            
+            const ruoloSelezionato = document.getElementById('ruolo-staff').value;
+            const email = document.getElementById('email-field').value.trim();
+            const password = document.getElementById('password-field').value;
+            const errorBox = document.getElementById('error-box');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // Reset interfaccia
+            errorBox.style.display = "none";
+            errorBox.innerText = "";
+            submitBtn.innerText = "Verifica in corso...";
+            submitBtn.disabled = true;
+
+            try {
+                // Passo 1: Autenticazione nativa su Supabase Auth
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (authError) {
+                    errorBox.innerText = "Autenticazione fallita: Email o password errate.";
+                    errorBox.style.display = "block";
+                    submitBtn.innerText = "Effettua Autenticazione";
+                    submitBtn.disabled = false;
+                    return false;
+                }
+
+                // ID dell'utente loggato generato dal modulo Auth
+                const userId = authData.user.id;
+
+                // Passo 2: Controllo del ruolo autorizzato nella tabella public.personale_enti
+                const { data: profiloStaff, error: dbError } = await supabaseClient
+                    .from('personale_enti')
+                    .select('ruolo')
+                    .eq('id', userId)
+                    .single();
+
+                if (dbError || !profiloStaff) {
+                    errorBox.innerText = "Errore autorizzazione: Account non censito nel personale autorizzato.";
+                    errorBox.style.display = "block";
+                    // Eseguiamo il logout di sicurezza se l'account non è presente nella tabella dello staff
+                    await supabaseClient.auth.signOut();
+                    submitBtn.innerText = "Effettua Autenticazione";
+                    submitBtn.disabled = false;
+                    return false;
+                }
+
+                // Passo 3: Verifica corrispondenza tra il ruolo selezionato e quello del Database
+                if (profiloStaff.ruolo !== ruoloSelezionato) {
+                    errorBox.innerText = `Accesso negato: Il tuo account non possiede i privilegi di tipo [${ruoloSelezionato}].`;
+                    errorBox.style.display = "block";
+                    submitBtn.innerText = "Effettua Autenticazione";
+                    submitBtn.disabled = false;
+                    return false;
+                }
+
+                // Passo 4: Routing basato sul Role-Based Access Control (RBAC)
+                if (profiloStaff.ruolo === 'PA') {
+                    window.location.href = 'pa-dashboard.html';
+                } else if (profiloStaff.ruolo === 'Operatore') {
+                    window.location.href = 'operatore-dashboard.html';
+                }
+
+            } catch (err) {
+                errorBox.innerText = "Impossibile connettersi al server di controllo sicurezza.";
+                errorBox.style.display = "block";
+                submitBtn.innerText = "Effettua Autenticazione";
+                submitBtn.disabled = false;
             }
         }
     </script>
