@@ -1,6 +1,3 @@
-Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar ora mostra Nome Cognome prendendoli prima da `user.user_metadata`, poi prova a recuperarli dalla tabella `utenti`, poi da `profiles`. Il colore resta `#ff5722`, logo e icone mantenuti. Codice basato sul file HTML che hai incollato. 
-
-```html id="dashboard-mappa-veicoli-nome-cognome"
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -75,6 +72,9 @@ Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar o
             padding-right: 18px;
             border-right: 1px solid var(--border-color);
             white-space: nowrap;
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .nav-item {
@@ -227,6 +227,10 @@ Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar o
                 gap: 15px;
             }
 
+            .nav-user {
+                max-width: 100%;
+            }
+
             .main-workspace {
                 height: calc(100vh - 115px);
             }
@@ -346,100 +350,14 @@ Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar o
                 return;
             }
 
-            await caricaNomeCognomeUtente(data.session.user);
+            mostraEmailUtente(data.session.user);
             caricaVeicoliFlotta();
         }
 
-        async function caricaNomeCognomeUtente(user) {
+        function mostraEmailUtente(user) {
             const elementoUtente = document.getElementById("utente-loggato");
-
-            const metadata = user.user_metadata || {};
-
-            let nome = String(
-                metadata.nome ||
-                metadata.Nome ||
-                metadata.first_name ||
-                metadata.firstName ||
-                ""
-            ).trim();
-
-            let cognome = String(
-                metadata.cognome ||
-                metadata.Cognome ||
-                metadata.last_name ||
-                metadata.lastName ||
-                ""
-            ).trim();
-
-            if (nome && cognome) {
-                elementoUtente.innerText = `${nome} ${cognome}`;
-                return;
-            }
-
-            const profiloDaTabellaUtenti = await cercaProfiloUtente("utenti", user.id, user.email);
-
-            if (profiloDaTabellaUtenti) {
-                nome = String(profiloDaTabellaUtenti.nome || profiloDaTabellaUtenti.Nome || "").trim();
-                cognome = String(profiloDaTabellaUtenti.cognome || profiloDaTabellaUtenti.Cognome || "").trim();
-
-                if (nome && cognome) {
-                    elementoUtente.innerText = `${nome} ${cognome}`;
-                    return;
-                }
-            }
-
-            const profiloDaTabellaProfiles = await cercaProfiloUtente("profiles", user.id, user.email);
-
-            if (profiloDaTabellaProfiles) {
-                nome = String(profiloDaTabellaProfiles.nome || profiloDaTabellaProfiles.Nome || "").trim();
-                cognome = String(profiloDaTabellaProfiles.cognome || profiloDaTabellaProfiles.Cognome || "").trim();
-
-                if (nome && cognome) {
-                    elementoUtente.innerText = `${nome} ${cognome}`;
-                    return;
-                }
-            }
-
-            elementoUtente.innerText = "Utente";
-        }
-
-        async function cercaProfiloUtente(nomeTabella, userId, email) {
-            try {
-                let risultato = await supabaseClient
-                    .from(nomeTabella)
-                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
-                    .eq("id", userId)
-                    .maybeSingle();
-
-                if (risultato.data && !risultato.error) {
-                    return risultato.data;
-                }
-
-                risultato = await supabaseClient
-                    .from(nomeTabella)
-                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
-                    .eq("user_id", userId)
-                    .maybeSingle();
-
-                if (risultato.data && !risultato.error) {
-                    return risultato.data;
-                }
-
-                risultato = await supabaseClient
-                    .from(nomeTabella)
-                    .select("nome, cognome, Nome, Cognome, id, user_id, email")
-                    .eq("email", email)
-                    .maybeSingle();
-
-                if (risultato.data && !risultato.error) {
-                    return risultato.data;
-                }
-
-                return null;
-
-            } catch (e) {
-                return null;
-            }
+            elementoUtente.innerText = user.email || "Email non disponibile";
+            elementoUtente.title = user.email || "";
         }
 
         async function logout() {
@@ -568,4 +486,3 @@ Ecco l’HTML completo corretto sulla dashboard “Mappa Veicoli”. La navbar o
 
 </body>
 </html>
-```
