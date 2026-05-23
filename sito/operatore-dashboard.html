@@ -16,8 +16,6 @@
         /* Layout Principale */
         .main-container { display: grid; grid-template-columns: 300px 1fr; flex-grow: 1; overflow: hidden; }
         .sidebar { padding: 20px; background: #1a1a1a; overflow-y: auto; }
-        
-        /* BOX VEICOLI - Stile PA */
         .vehicle-item { background: #222; border: 1px solid #333; padding: 12px; margin-bottom: 10px; border-radius: 4px; font-size: 0.95em; }
         
         .map-container { position: relative; }
@@ -63,15 +61,28 @@
         async function logout() { await client.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function init() {
+            // 1. Mappa
             const map = L.map('map').setView([41.1171, 16.8719], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            // Carica Veicoli con stile Box separati
+            // 2. Veicoli e Marker
             const { data: veicoli } = await client.from('veicoli').select('*');
-            document.getElementById('veicoli-content').innerHTML = veicoli?.map(v => 
-                `<div class="vehicle-item">${v.nome} (${v.batteria}%)</div>`).join('') || "Nessun veicolo";
+            const container = document.getElementById('veicoli-content');
+            
+            if (veicoli) {
+                container.innerHTML = veicoli.map(v => {
+                    // Aggiungi marker se esistono coordinate
+                    if (v.latitudine && v.longitudine) {
+                        L.marker([v.latitudine, v.longitudine]).addTo(map)
+                         .bindPopup(`<b>${v.nome}</b><br>Batteria: ${v.batteria}%`);
+                    }
+                    return `<div class="vehicle-item">${v.nome} (${v.batteria}%)</div>`;
+                }).join('');
+            } else {
+                container.innerHTML = "Nessun veicolo trovato.";
+            }
 
-            // Carica Segnalazioni TECNICHE
+            // 3. Segnalazioni TECNICHE
             const { data: ticket } = await client.from('segnalazioni').select('*');
             const corpo = document.getElementById("corpo-tabella");
             
