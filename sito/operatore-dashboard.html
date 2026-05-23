@@ -63,7 +63,7 @@
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function caricaDati() {
-            // 1. Veicoli
+            // 1. Carica Veicoli
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
@@ -72,25 +72,9 @@
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
             });
 
-            // 2. Segnalazioni - Filtriamo solo per categoria 'Tecnica'
-            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*').eq('categoria', 'Tecnica');
-            
+            // 2. Carica Segnalazioni con filtro aggressivo
+            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*');
             const corpo = document.getElementById("corpo-tabella-operatore");
-            if (ticket) {
-                corpo.innerHTML = ticket.map(t => `
-                    <tr>
-                        <td>${t.area}</td>
-                        <td>${t.categoria}</td>
-                        <td>${t.descrizione}</td>
-                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
-                    </tr>`).join('');
-            }
-        }
-
-        window.onload = () => {
-            setTimeout(() => { map.invalidateSize(); }, 500);
-            caricaDati();
-        };
-    </script>
-</body>
-</html>
+            
+            if (error) {
+                corpo.innerHTML
