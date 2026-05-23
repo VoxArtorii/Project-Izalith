@@ -8,37 +8,16 @@
         :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
-        
         .header-simple { padding: 20px; text-align: center; border-bottom: 1px solid var(--border-color); background: #0A0A0A; }
         .reg-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
-        
-        .reg-card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 35px; width: 100%; max-width: 550px; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
-        h2 { font-size: 24px; margin-bottom: 8px; text-align: center; }
-        p.subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 25px; }
-        
+        .reg-card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 35px; width: 100%; max-width: 550px; }
         form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .full-width { grid-column: span 2; }
-        
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-size: 13px; font-weight: 600; color: #BBB; }
         .form-group input { background: #121212; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; font-size: 14px; }
-        .form-group input:focus { outline: none; border-color: var(--primary-orange); }
-        
-        .btn-submit { grid-column: span 2; background-color: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 15px; transition: background 0.3s; }
-        .btn-submit:hover { background-color: #E64A19; }
-        .btn-submit:disabled { background-color: #555; border: 1px solid var(--border-color); cursor: not-allowed; }
-        .back-link { grid-column: span 2; text-align: center; font-size: 14px; margin-top: 15px; }
-        .back-link a { color: var(--primary-orange); text-decoration: none; }
-
-        /* Stile dinamico per messaggi informativi e di errore */
-        .status-message {
-            grid-column: span 2;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            text-align: center;
-            display: none;
-        }
+        .btn-submit { grid-column: span 2; background-color: var(--primary-orange); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 15px; }
+        .status-message { grid-column: span 2; padding: 12px; border-radius: 6px; font-size: 14px; text-align: center; display: none; }
         .error-style { background: rgba(244, 67, 54, 0.1); border: 1px solid #f44336; color: #f44336; }
         .success-style { background: rgba(76, 175, 80, 0.1); border: 1px solid #4CAF50; color: #4CAF50; }
     </style>
@@ -54,150 +33,76 @@
 
     <div class="reg-container">
         <div class="reg-card">
-            <h2>Crea il tuo Profilo Eco-Sharing</h2>
-            <p class="subtitle">Inserisci i tuoi dati anagrafici e fiscali per abilitare l'account.</p>
-            
-            <form onsubmit="completato(event)">
+            <h2>Crea il tuo Profilo</h2>
+            <form id="reg-form">
                 <div id="status-box" class="status-message"></div>
-
-                <div class="form-group">
-                    <label for="nome">Nome</label>
-                    <input type="text" id="nome" required placeholder="Es. Luigi">
-                </div>
-                <div class="form-group">
-                    <label for="cognome">Cognome</label>
-                    <input type="text" id="cognome" required placeholder="Es. Basile">
-                </div>
-                <div class="form-group full-width">
-                    <label for="email">Indirizzo Email</label>
-                    <input type="email" id="email" required placeholder="esempio@studenti.uniba.it">
-                </div>
-                <div class="form-group full-width">
-                    <label for="cf">Codice Fiscale (Obbligatorio per Normativa Legale)</label>
-                    <input type="text" id="cf" required placeholder="BSLLGU96A..." style="text-transform: uppercase;" maxlength="16" minlength="16">
-                </div>
-                <div class="form-group">
-                    <label for="pass">Password</label>
-                    <input type="password" id="pass" required placeholder="••••••••" minlength="6">
-                </div>
-                <div class="form-group">
-                    <label for="pass-conf">Conferma Password</label>
-                    <input type="password" id="pass-conf" required placeholder="••••••••" minlength="6">
-                </div>
-                
-                <button type="submit" id="btn-registrazione" class="btn-submit">Registrati e Attiva Profilo</button>
-                
-                <div class="back-link">
-                    Hai già un account? <a href="login-user.html">Accedi qui</a>
-                </div>
+                <div class="form-group"><label>Nome</label><input type="text" id="nome" required></div>
+                <div class="form-group"><label>Cognome</label><input type="text" id="cognome" required></div>
+                <div class="form-group full-width"><label>Email</label><input type="email" id="email" required></div>
+                <div class="form-group full-width"><label>Codice Fiscale</label><input type="text" id="cf" required maxlength="16"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="pass" required minlength="6"></div>
+                <div class="form-group"><label>Conferma</label><input type="password" id="pass-conf" required minlength="6"></div>
+                <button type="submit" id="btn-submit" class="btn-submit">Registrati</button>
             </form>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
-        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
-        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
-
-        async function completato(e) {
+        const supabase = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        
+        document.getElementById('reg-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const nome = document.getElementById("nome").value.trim();
-            const cognome = document.getElementById("cognome").value.trim();
-            const email = document.getElementById("email").value.trim();
-            const cf = document.getElementById("cf").value.trim().toUpperCase();
-            const password = document.getElementById("pass").value;
-            const passwordConf = document.getElementById("pass-conf").value;
-            
             const statusBox = document.getElementById("status-box");
-            const btnSubmit = document.getElementById("btn-registrazione");
-
-            // Reset box messaggi
+            const btn = document.getElementById("btn-submit");
+            
             statusBox.style.display = "none";
-            statusBox.className = "status-message";
+            
+            const email = document.getElementById("email").value;
+            const pass = document.getElementById("pass").value;
+            const passConf = document.getElementById("pass-conf").value;
 
-            // Validazione client-side della corrispondenza password
-            if (password !== passwordConf) {
-                statusBox.innerText = "Errore: Le password inserite non corrispondono.";
-                statusBox.classList.add("error-style");
+            if (pass !== passConf) {
+                statusBox.innerText = "Le password non coincidono.";
+                statusBox.className = "status-message error-style";
                 statusBox.style.display = "block";
-                return false;
+                return;
             }
 
-            // Blocco del pulsante per evitare click multipli durante il transito dei pacchetti
-            btnSubmit.innerText = "Elaborazione transazione di sicurezza...";
-            btnSubmit.disabled = true;
+            btn.disabled = true;
+            btn.innerText = "Caricamento...";
 
             try {
-                // PASSO 1: Registrazione delle credenziali cifrate su Supabase Auth
-                const { data: registrazioneCloud, error: authError } = await supabaseClient.auth.signUp({
+                // 1. Auth
+                const { data: auth, error: authErr } = await supabase.auth.signUp({ email, password: pass });
+                if (authErr) throw authErr;
+
+                // 2. Database
+                const { error: dbErr } = await supabase.from('utenti').insert([{
+                    id: auth.user.id,
+                    nome: document.getElementById("nome").value,
+                    cognome: document.getElementById("cognome").value,
+                    codice_fiscale: document.getElementById("cf").value,
                     email: email,
-                    password: password
-                });
+                    wallet_balance: 0
+                }]);
+                
+                if (dbErr) throw dbErr;
 
-                if (authError) {
-                    statusBox.innerText = "Errore di registrazione: " + traduciErrore(authError.message);
-                    statusBox.classList.add("error-style");
-                    statusBox.style.display = "block";
-                    btnSubmit.innerText = "Registrati e Attiva Profilo";
-                    btnSubmit.disabled = false;
-                    return false;
-                }
-
-                // Estrazione dell'UUID di sicurezza univoco generato dal backend
-                const accountUID = registrazioneCloud.user.id;
-
-                // PASSO 2: Scrittura sincrona nella tabella relazionale 'utenti' nello schema public
-                const { error: dbError } = await supabaseClient
-                    .from('utenti')
-                    .insert([
-                        {
-                            id: accountUID,
-                            nome: nome,
-                            cognome: cognome,
-                            codice_fiscale: cf,
-                            email: email,
-                            wallet_balance: 0.00 // Inizializzazione Wallet obbligatoria per Sprint 1
-                        }
-                    ]);
-
-                if (dbError) {
-                    statusBox.innerText = "Errore sincronizzazione profilo: " + dbError.message;
-                    statusBox.classList.add("error-style");
-                    statusBox.style.display = "block";
-                    btnSubmit.innerText = "Registrati e Attiva Profilo";
-                    btnSubmit.disabled = false;
-                    return false;
-                }
-
-                // PASSO 3: Flusso completato correttamente
-                statusBox.innerText = "Registrazione completata con successo! Profilo ed Eco-Wallet attivati.";
-                statusBox.classList.add("success-style");
+                statusBox.innerText = "Registrazione completata!";
+                statusBox.className = "status-message success-style";
                 statusBox.style.display = "block";
-
-                setTimeout(() => {
-                    window.location.href = 'login-user.html';
-                }, 2200);
+                setTimeout(() => window.location.href = 'login-user.html', 1000);
 
             } catch (err) {
-                statusBox.innerText = "Errore di transito dati. Controllare la connessione.";
-                statusBox.classList.add("error-style");
+                console.error("ERRORE RILEVATO:", err);
+                statusBox.innerText = "Errore: " + err.message;
+                statusBox.className = "status-message error-style";
                 statusBox.style.display = "block";
-                btnSubmit.innerText = "Registrati e Attiva Profilo";
-                btnSubmit.disabled = false;
+                btn.disabled = false;
+                btn.innerText = "Registrati";
             }
-
-            return false;
-        }
-
-        // Funzione per la pulizia dei messaggi nativi di errore di Postgres/Supabase
-        function traduciErrore(msg) {
-            if (msg.includes("User already registered")) {
-                return "Questo indirizzo email risulta già associato ad un profilo attivo.";
-            }
-            return msg;
-        }
+        });
     </script>
 </body>
 </html>
