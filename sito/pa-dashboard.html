@@ -10,9 +10,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Navbar con Area Utente */
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
-        .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 18px; }
+        .nav-brand { font-weight: bold; font-size: 18px; }
         .user-profile { display: flex; align-items: center; gap: 15px; color: var(--text-light); }
         .nav-btn-logout { background: #FF5722; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 
@@ -66,7 +65,6 @@
     <script>
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         
-        // Inizializzazione Mappa
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -75,7 +73,10 @@
                 if (!data.session) window.location.href = 'login-user.html';
                 else {
                     document.getElementById('user-email').innerText = data.session.user.email;
+                    // Fix per renderizzazione mappa
+                    setTimeout(() => { map.invalidateSize(); }, 500);
                     sincronizzaPortalePA();
+                    caricaSegnalazioni();
                 }
             });
         };
@@ -86,16 +87,31 @@
             const listaDiv = document.getElementById("lista-veicoli-pa");
             const { data: veicoli, error } = await supabaseClient.from('veicoli').select('*').eq('area_competenza', 'BA-01');
             
+            if (error) return console.error(error);
             listaDiv.innerHTML = "";
-            if (!error && veicoli) {
+            if (veicoli) {
                 veicoli.forEach(v => {
-                    // Crea lista
                     listaDiv.innerHTML += `<div style="padding:10px; border-bottom:1px solid #333;">${v.nome} (${v.batteria}%)</div>`;
-                    // Aggiungi marker mappa
                     if(v.latitudine && v.longitudine) {
                         L.marker([v.latitudine, v.longitudine]).addTo(map).bindPopup(v.nome);
                     }
                 });
+            }
+        }
+
+        async function caricaSegnalazioni() {
+            const corpoTabella = document.getElementById("corpo-tabella-pa");
+            const { data: segnalazioni, error } = await supabaseClient.from('segnalazioni').select('*').eq('area_competenza', 'BA-01');
+            
+            if (!error && segnalazioni) {
+                corpoTabella.innerHTML = segnalazioni.map(s => `
+                    <tr>
+                        <td>${s.area_competenza}</td>
+                        <td>${s.categoria}</td>
+                        <td>${s.descrizione}</td>
+                        <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
             }
         }
     </script>
