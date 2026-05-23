@@ -66,9 +66,9 @@
                 <div class="form-group">
                     <label for="citta-segnalazione">Area Urbana di Riferimento</label>
                     <select id="citta-segnalazione" class="form-control" required>
-                        <option value="Bari [BA-01]">Bari [BA-01]</option>
-                        <option value="Foggia [FG-02]">Foggia [FG-02]</option>
-                        <option value="Taranto [TA-03]">Taranto [TA-03]</option>
+                        <option value="BA-01">Bari [BA-01]</option>
+                        <option value="FG-02">Foggia [FG-02]</option>
+                        <option value="TA-03">Taranto [TA-03]</option>
                     </select>
                 </div>
 
@@ -96,8 +96,6 @@
         (function() {
             const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
             const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
-            
-            // Usiamo un nome univoco locale isolato per evitare conflitti globali
             window.supabaseClient = supabase.createClient(URL_DB, KEY_DB);
         })();
 
