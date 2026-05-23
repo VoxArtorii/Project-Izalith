@@ -66,11 +66,12 @@
     </div>
 
     <script>
-        const supabase = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        // Configurazione client Supabase rinominata per evitare conflitti
+        const sbClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         let userId = "";
 
         async function init() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await sbClient.auth.getUser();
             if (!user) {
                 window.location.href = "login-user.html";
                 return;
@@ -82,24 +83,26 @@
         async function aggiornaDati() {
             try {
                 // Carica Saldo
-                const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
+                const { data: utente } = await sbClient.from('utenti').select('wallet_balance').eq('id', userId).single();
                 if (utente) {
                     document.getElementById('saldo-attuale').innerText = `€ ${utente.wallet_balance.toFixed(2)}`;
                 }
 
                 // Carica Storico
-                const { data: transazioni } = await supabase.from('storico_transazioni')
+                const { data: transazioni } = await sbClient.from('storico_transazioni')
                     .select('*')
                     .eq('user_id', userId)
                     .order('created_at', { ascending: false });
                 
                 const tbody = document.getElementById('storico-body');
-                tbody.innerHTML = transazioni.map(t => `
-                    <tr>
-                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
-                        <td>${t.descrizione}</td>
-                        <td style="color:${t.importo > 0 ? '#4CAF50' : '#f44336'}">${t.importo > 0 ? '+' : ''}€ ${t.importo.toFixed(2)}</td>
-                    </tr>`).join('');
+                if (transazioni) {
+                    tbody.innerHTML = transazioni.map(t => `
+                        <tr>
+                            <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                            <td>${t.descrizione}</td>
+                            <td style="color:${t.importo > 0 ? '#4CAF50' : '#f44336'}">${t.importo > 0 ? '+' : ''}€ ${t.importo.toFixed(2)}</td>
+                        </tr>`).join('');
+                }
             } catch (err) {
                 console.error("Errore caricamento dati:", err);
             }
@@ -113,10 +116,10 @@
             if (isNaN(importo) || importo <= 0) return alert("Inserisci un importo valido");
 
             try {
-                const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
+                const { data: utente } = await sbClient.from('utenti').select('wallet_balance').eq('id', userId).single();
                 
-                await supabase.from('utenti').update({ wallet_balance: utente.wallet_balance + importo }).eq('id', userId);
-                await supabase.from('storico_transazioni').insert([{ 
+                await sbClient.from('utenti').update({ wallet_balance: utente.wallet_balance + importo }).eq('id', userId);
+                await sbClient.from('storico_transazioni').insert([{ 
                     user_id: userId, 
                     importo: importo, 
                     descrizione: `Ricarica via ${metodo}` 
