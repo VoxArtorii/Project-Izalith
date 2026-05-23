@@ -9,24 +9,18 @@
         :root { --primary-blue: #2196F3; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { font-weight: bold; font-size: 18px; }
-        .user-profile { display: flex; align-items: center; gap: 15px; color: var(--text-light); }
-        .nav-btn-logout { background: #FF5722; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-
+        .user-profile { display: flex; align-items: center; gap: 15px; }
+        .nav-btn-logout { background: #FF5722; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
-        .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; border-bottom: 2px solid var(--border-color); overflow: hidden; }
-        
-        .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 20px; overflow-y: auto; }
-        .map-wrapper { width: 100%; height: 100%; }
+        .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; border-bottom: 2px solid var(--border-color); }
+        .sidebar-fleet { background: var(--surface-card); padding: 20px; overflow-y: auto; }
         #map { width: 100%; height: 100%; filter: grayscale(1) invert(1) contrast(1.2); }
-        
         .bottom-section { background: var(--surface-card); padding: 20px; overflow-y: auto; }
-        .table-container { border: 1px solid var(--border-color); border-radius: 6px; background: #121212; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
-        th { background: #0A0A0A; color: var(--text-muted); text-transform: uppercase; font-size: 12px; }
+        th { background: #0A0A0A; color: var(--text-muted); text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -35,7 +29,7 @@
         <div class="nav-brand">IZALITH - PORTALE PA [BA-01]</div>
         <div class="user-profile">
             <span id="user-email" style="font-size: 13px;"></span>
-            <button class="nav-btn-logout" onclick="logout()">Esci</button>
+            <button class="nav-btn-logout" onclick="logoutUser()">Esci</button>
         </div>
     </nav>
 
@@ -43,20 +37,16 @@
         <div class="top-section">
             <div class="sidebar-fleet">
                 <div style="font-weight:bold; margin-bottom:10px;">FLOTTA ATTIVA</div>
-                <div id="lista-veicoli-pa"></div>
+                <div id="lista-mezzi"></div>
             </div>
-            <div class="map-wrapper">
-                <div id="map"></div>
-            </div>
+            <div id="map"></div>
         </div>
         <div class="bottom-section">
             <div style="font-weight:bold;">REGISTRO CRITICITÀ</div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Area</th><th>Ambito</th><th>Descrizione</th><th>Data</th></tr></thead>
-                    <tbody id="corpo-tabella-pa"></tbody>
-                </table>
-            </div>
+            <table>
+                <thead><tr><th>Area</th><th>Ambito</th><th>Descrizione</th><th>Data</th></tr></thead>
+                <tbody id="tabella-criticità"></tbody>
+            </table>
         </div>
     </div>
 
@@ -64,58 +54,54 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
-        
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        window.onload = function() { 
+        async function logoutUser() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
+
+        // Caricamento dati VERO, senza nomi di colonne ambigui
+        async function caricaDatiAggiornati() {
+            console.log("Inizio caricamento...");
+            
+            // Carica veicoli usando colonna 'area'
+            const { data: veicoli, error: errV } = await supabaseClient
+                .from('veicoli')
+                .select('*')
+                .eq('area', 'BA-01');
+
+            if (errV) console.error("Errore Veicoli:", errV);
+            else {
+                const lista = document.getElementById("lista-mezzi");
+                lista.innerHTML = "";
+                veicoli.forEach(v => {
+                    lista.innerHTML += `<div style="padding:10px; border-bottom:1px solid #333;">${v.nome} (${v.batteria}%)</div>`;
+                    if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine]).addTo(map).bindPopup(v.nome);
+                });
+            }
+
+            // Carica segnalazioni usando colonna 'area'
+            const { data: segn, error: errS } = await supabaseClient
+                .from('segnalazioni')
+                .select('*')
+                .eq('area', 'BA-01');
+
+            if (errS) console.error("Errore Segnalazioni:", errS);
+            else {
+                const tab = document.getElementById("tabella-criticità");
+                tab.innerHTML = segn.map(s => `<tr><td>${s.area}</td><td>${s.categoria}</td><td>${s.descrizione}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join('');
+            }
+        }
+
+        window.onload = () => {
             supabaseClient.auth.getSession().then(({ data }) => {
                 if (!data.session) window.location.href = 'login-user.html';
                 else {
                     document.getElementById('user-email').innerText = data.session.user.email;
                     setTimeout(() => { map.invalidateSize(); }, 500);
-                    sincronizzaPortalePA();
-                    caricaSegnalazioni();
+                    caricaDatiAggiornati();
                 }
             });
         };
-
-        async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
-
-        async function sincronizzaPortalePA() {
-            const listaDiv = document.getElementById("lista-veicoli-pa");
-            // Filtro corretto sulla colonna 'area'
-            const { data: veicoli, error } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
-            
-            if (error) { console.error("Errore Veicoli:", error); listaDiv.innerHTML = "Errore: " + error.message; return; }
-            
-            listaDiv.innerHTML = "";
-            if (veicoli) {
-                veicoli.forEach(v => {
-                    listaDiv.innerHTML += `<div style="padding:10px; border-bottom:1px solid #333;">${v.nome} (${v.batteria}%)</div>`;
-                    if(v.latitudine && v.longitudine) {
-                        L.marker([parseFloat(v.latitudine), parseFloat(v.longitudine)]).addTo(map).bindPopup(v.nome);
-                    }
-                });
-            }
-        }
-
-        async function caricaSegnalazioni() {
-            const corpoTabella = document.getElementById("corpo-tabella-pa");
-            // Filtro corretto sulla colonna 'area'
-            const { data: segnalazioni, error } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
-            
-            if (!error && segnalazioni) {
-                corpoTabella.innerHTML = segnalazioni.map(s => `
-                    <tr>
-                        <td>${s.area}</td>
-                        <td>${s.categoria}</td>
-                        <td>${s.descrizione}</td>
-                        <td>${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/D'}</td>
-                    </tr>
-                `).join('');
-            }
-        }
     </script>
 </body>
 </html>
