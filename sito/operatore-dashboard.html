@@ -10,7 +10,15 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); height: 65px; color: var(--primary-orange); font-weight: bold; }
+        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
+        .nav-brand { color: var(--primary-orange); font-weight: bold; font-size: 18px; }
+        
+        /* Stile User & Logout */
+        .user-area { display: flex; align-items: center; gap: 15px; }
+        .user-icon { width: 32px; height: 32px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; }
+        .btn-logout { background: var(--primary-orange); border: none; color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .btn-logout:hover { opacity: 0.9; }
+
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
         .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
         
@@ -28,7 +36,14 @@
 </head>
 <body>
 
-    <nav class="app-navbar">IZALITH - BACKOFFICE LOGISTICA [BA-01]</nav>
+    <nav class="app-navbar">
+        <div class="nav-brand">IZALITH - BACKOFFICE LOGISTICA [BA-01]</div>
+        <div class="user-area">
+            <div class="user-icon">👤</div>
+            <span id="user-email" style="font-size: 13px;"></span>
+            <button class="btn-logout" onclick="logout()">Esci</button>
+        </div>
+    </nav>
 
     <div class="workspace">
         <div class="top-section">
@@ -52,8 +67,12 @@
 
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20] });
 
+        async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
+
         async function caricaLogistica() {
-            // Carica Veicoli - Filtro sulla colonna 'area'
+            const { data: sessionData } = await supabaseClient.auth.getSession();
+            if (sessionData.session) document.getElementById('user-email').innerText = sessionData.session.user.email;
+
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato della Flotta</strong><br><br>";
@@ -65,7 +84,6 @@
                 }
             });
 
-            // Carica Segnalazioni - Filtro sulla colonna 'area'
             const { data: ticket } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
             const corpo = document.getElementById("corpo-tabella-operatore");
             corpo.innerHTML = ticket?.map(t => `
