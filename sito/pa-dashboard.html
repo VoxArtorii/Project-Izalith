@@ -10,7 +10,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Navbar con Area Utente */
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { font-weight: bold; font-size: 18px; }
         .user-profile { display: flex; align-items: center; gap: 15px; color: var(--text-light); }
@@ -85,10 +84,10 @@
 
         async function sincronizzaPortalePA() {
             const listaDiv = document.getElementById("lista-veicoli-pa");
-            // Nota: Corretto filtro per colonna 'area'
+            // Filtro corretto sulla colonna 'area'
             const { data: veicoli, error } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             
-            if (error) { console.error(error); listaDiv.innerHTML = "Errore caricamento flotta."; return; }
+            if (error) { console.error("Errore Veicoli:", error); listaDiv.innerHTML = "Errore: " + error.message; return; }
             
             listaDiv.innerHTML = "";
             if (veicoli) {
@@ -103,6 +102,7 @@
 
         async function caricaSegnalazioni() {
             const corpoTabella = document.getElementById("corpo-tabella-pa");
+            // Filtro corretto sulla colonna 'area'
             const { data: segnalazioni, error } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
             
             if (!error && segnalazioni) {
