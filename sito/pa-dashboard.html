@@ -14,30 +14,45 @@
             --border-color: #2C2C2C;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
         
-        .main-container { flex: 1; padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
-        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .panel-title { font-size: 26px; font-weight: 600; }
+        /* Layout Principale Diviso */
+        .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
         
-        .btn-refresh { background: none; border: 1px solid var(--primary-blue); color: var(--primary-blue); padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        /* Sezione Superiore: Flotta + Mappa */
+        .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; border-bottom: 2px solid var(--border-color); overflow: hidden; }
+        
+        .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+        .section-title { font-size: 16px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px; transition: border-color 0.3s; }
+        .vehicle-box:hover { border-color: var(--primary-blue); }
+        .vehicle-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .battery-level { font-weight: bold; font-size: 13px; }
+        
+        .map-wrapper { width: 100%; height: 100%; background: #222; }
+        .map-iframe { width: 100%; height: 100%; border: none; filter: grayscale(1) invert(1) contrast(1.2); }
+        
+        /* Sezione Inferiore: Tabella Ticket Ambientali */
+        .bottom-section { background: var(--surface-card); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .table-header-row { display: flex; justify-content: space-between; align-items: center; }
+        
+        .btn-refresh { background: none; border: 1px solid var(--primary-blue); color: var(--primary-blue); padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; transition: all 0.2s; }
         .btn-refresh:hover { background: rgba(33,150,243,0.1); }
 
-        .table-container { background-color: var(--surface-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .table-container { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: #121212; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 16px 20px; border-bottom: 1px solid var(--border-color); }
-        th { background-color: #0A0A0A; color: var(--text-muted); font-size: 14px; font-weight: 600; text-transform: uppercase; }
-        td { font-size: 15px; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        th { background-color: #0A0A0A; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 12px; }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background-color: rgba(255,255,255,0.02); }
+        tr:hover td { background-color: rgba(255,255,255,0.01); }
 
-        .badge { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; }
         .badge-env { background-color: rgba(33,150,243,0.15); color: var(--primary-blue); }
-        
-        .no-data { text-align: center; color: var(--text-muted); padding: 40px; font-size: 15px; }
+        .no-data { text-align: center; color: var(--text-muted); padding: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -48,36 +63,53 @@
                 <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#2196F3"/>
                 <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
             </svg>
-            <span>IZALITH - PORTALE PUBBLICA AMMINISTRAZIONE</span>
+            <span>IZALITH - PORTALE PUBBLICA AMMINISTRAZIONE [BARI]</span>
         </div>
     </nav>
 
-    <div class="main-container">
-        <div class="panel-header">
-            <div>
-                <h1 class="panel-title">Monitoraggio Criticità Urbane e Viabilità</h1>
-                <p style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">Visualizzazione esclusiva delle segnalazioni inerenti a ostruzioni stradali, sinistri o problemi ambientali.</p>
+    <div class="workspace">
+        
+        <div class="top-section">
+            <div class="sidebar-fleet">
+                <div class="section-title">Dislocazione Flotta Micro-Mobilità</div>
+                <p style="color: var(--text-muted); font-size: 12px;">Mezzi presenti nell'area comunale di Bari [BA-01]:</p>
+                <div id="lista-veicoli-pa">
+                    </div>
             </div>
-            <button class="btn-refresh" onclick="scaricaSegnalazioniAmbientali()">🔄 Aggiorna Registro</button>
+            
+            <div class="map-wrapper">
+                <iframe class="map-iframe" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48074.88727038753!2d16.835565345719327!3d41.11714264627239!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1347e8f533a1e943%3A0x307d9e262c8e310!2sBari%20BA!5e0!3m2!1sit!2sit!4v1710000000000!5m2!1sit!2sit" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+        
+        <div class="bottom-section">
+            <div class="table-header-row">
+                <div>
+                    <span class="section-title">Registro Criticità Urbane & Viabilità</span>
+                    <span style="color: var(--text-muted); font-size: 13px; margin-left: 10px;">Solo segnalazioni di tipo ambientale/ostruzioni stradali.</span>
+                </div>
+                <button class="btn-refresh" onclick="sincronizzaPortalePA()">🔄 Aggiorna Registro</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Area Urbana</th>
+                            <th>Ambito</th>
+                            <th>Descrizione Problema Riscontrato</th>
+                            <th>Data Segnalazione</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabella-pa">
+                        </tbody>
+                </table>
+                <div id="messaggio-vuoto" class="no-data" style="display: none;">
+                    Nessuna segnalazione di viabilità o ambientale registrata per quest'area.
+                </div>
+            </div>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Area Urbana</th>
-                        <th>Ambito</th>
-                        <th>Descrizione Problema Ambientale / Viabilità</th>
-                        <th>Data Segnalazione</th>
-                    </tr>
-                </thead>
-                <tbody id="corpo-tabella-pa">
-                    </tbody>
-            </table>
-            <div id="messaggio-vuoto" class="no-data" style="display: none;">
-                Nessuna problematica di viabilità o ambientale registrata per quest'area.
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -86,19 +118,69 @@
         const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
         const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
 
+        // Flotta Mock di backup
+        const flottaMock = [
+            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 },
+            { codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 22 },
+            { codice: "Pattino-X1", tipo: "Monopattino", nome: "Izalith Speed", batteria: 45 }
+        ];
+
         window.onload = function() {
-            scaricaSegnalazioniAmbientali();
+            sincronizzaPortalePA();
         };
 
+        function sincronizzaPortalePA() {
+            scaricaFlottaUrbanaPA();
+            scaricaSegnalazioniAmbientali();
+        }
+
+        // 1. CARICAMENTO DEI MEZZI NELLA SIDEBAR COMUNALE
+        async function scaricaFlottaUrbanaPA() {
+            const listaDiv = document.getElementById("lista-veicoli-pa");
+            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Sincronizzazione telemetria flotta...</p>';
+
+            try {
+                const { data: veicoliCloud, error } = await supabaseClient
+                    .from('veicoli')
+                    .select('*')
+                    .eq('area', 'Bari [BA-01]');
+
+                let mezzi = (!error && veicoliCloud && veicoliCloud.length > 0) ? veicoliCloud : flottaMock;
+                
+                listaDiv.innerHTML = "";
+                mezzi.forEach(mezzo => {
+                    let icona = "🛴";
+                    if(mezzo.tipo === "Auto") icona = "🚗";
+                    if(mezzo.tipo === "Scooter") icona = "🛵";
+
+                    let coloreBatteria = mezzo.batteria < 30 ? '#f44336' : '#4CAF50';
+
+                    let div = document.createElement('div');
+                    div.className = "vehicle-box";
+                    div.innerHTML = `
+                        <div class="vehicle-meta">
+                            <strong>${icona} ${mezzo.nome || mezzo.codice}</strong>
+                            <span class="battery-level" style="color: ${coloreBatteria}">${mezzo.batteria}%</span>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 12px;">Codice Mezzo: ${mezzo.codice}</p>
+                    `;
+                    listaDiv.appendChild(div);
+                });
+            } catch (e) {
+                listaDiv.innerHTML = '<p class="no-data">Errore caricamento dati flotta.</p>';
+            }
+        }
+
+        // 2. CARICAMENTO DELLE SEGNALAZIONI AMBIENTALI NELLA TABELLA COMUNALE
         async function scaricaSegnalazioniAmbientali() {
             const corpoTabella = document.getElementById("corpo-tabella-pa");
             const messaggioVuoto = document.getElementById("messaggio-vuoto");
             
-            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Sincronizzazione con il registro comunale...</td></tr>';
+            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Aggiornamento registro comunale...</td></tr>';
             messaggioVuoto.style.display = "none";
 
             try {
-                // FILTRO COMPLETO: Area = Bari AND Categoria = Ambientale / Viabilità
+                // FILTRO COMPLETO PA: Area = Bari AND Categoria = Ambientale / Viabilità
                 const { data: ticketAmbientali, error } = await supabaseClient
                     .from('segnalazioni')
                     .select('*')
@@ -107,8 +189,7 @@
                     .order('id', { ascending: false });
 
                 if (error) {
-                    console.error("Errore query:", error);
-                    corpoTabella.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore: ${error.message}</td></tr>`;
+                    corpoTabella.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore di sincronizzazione: ${error.message}</td></tr>`;
                     return;
                 }
 
@@ -126,15 +207,14 @@
                     tr.innerHTML = `
                         <td><strong>${ticket.area}</strong></td>
                         <td><span class="badge badge-env">${ticket.categoria}</span></td>
-                        <td style="color: #E0E0E0; max-width: 400px; word-wrap: break-word;">${ticket.descrizione}</td>
+                        <td style="color: #E0E0E0; max-width: 500px; word-wrap: break-word;">${ticket.descrizione}</td>
                         <td style="color: var(--text-muted); font-size: 13px;">${dataFormattata}</td>
                     `;
                     corpoTabella.appendChild(tr);
                 });
 
             } catch (err) {
-                console.error(err);
-                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore critico di rete.</td></tr>';
+                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Impossibile raggiungere il server.</td></tr>';
             }
         }
     </script>
