@@ -23,6 +23,9 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         th { background: #0A0A0A; color: var(--text-muted); text-transform: uppercase; }
+        
+        /* Stile marker personalizzato */
+        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
     </style>
 </head>
 <body>
@@ -56,16 +59,18 @@
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // Icona Arancione Personalizzata
-        const orangeIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        // Icona Arancione basata su Div
+        const orangeIcon = L.divIcon({
+            className: 'custom-orange-marker',
+            iconSize: [20, 20],
+            iconAnchor: [10, 20],
+            popupAnchor: [0, -20]
         });
 
         async function logoutUser() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function caricaDatiAggiornati() {
+            // Caricamento Veicoli
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-mezzi");
             lista.innerHTML = "";
@@ -77,6 +82,7 @@
                 }
             });
 
+            // Caricamento Segnalazioni
             const { data: segn } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
             const tab = document.getElementById("tabella-criticità");
             tab.innerHTML = segn?.map(s => `<tr><td>${s.area}</td><td>${s.categoria}</td><td>${s.descrizione}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join('') || "";
