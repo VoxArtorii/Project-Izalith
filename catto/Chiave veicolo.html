@@ -1,0 +1,274 @@
+<div id="izalith-digital-key-app" style="background:#f8fafc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:20px; border-radius:12px; max-width:800px; margin:auto; min-height: 600px;">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-digital-key-app * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        .iz-card { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
+        .iz-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 5px; }
+        .iz-subtitle { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+        
+        /* Lista Veicoli Personali */
+        .iz-rental-list { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px; }
+        .iz-rental-item { padding: 15px 20px; background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .iz-rental-item:hover { border-color: #cbd5e1; background: #f1f5f9; }
+        .iz-rental-item.active { border-color: #2563eb; background: #eff6ff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15); }
+        
+        .iz-rental-info h4 { font-size: 16px; color: #0f172a; margin-bottom: 4px; }
+        .iz-rental-info p { font-size: 13px; color: #64748b; font-weight: 600; }
+        .iz-rental-status { padding: 5px 10px; background: #dcfce7; color: #16a34a; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+
+        /* Pannello Chiave Digitale */
+        .iz-key-panel { background: #0f172a; border-radius: 16px; padding: 30px 20px; color: #fff; text-align: center; position: relative; overflow: hidden; transition: 0.3s; }
+        .iz-key-header { margin-bottom: 30px; }
+        .iz-key-header h3 { font-size: 24px; font-weight: 800; margin-bottom: 5px; }
+        .iz-key-header p { color: #94a3b8; font-size: 14px; margin-bottom: 10px; }
+        
+        /* Display Georiferito */
+        .iz-coord-display { background:rgba(255,255,255,0.08); border-radius: 15px; font-size: 11.5px; font-family: monospace; font-weight: 500; color: #c084fc; display: inline-flex; align-items: center; gap: 6px; }
+        
+        /* Pulsante Motore (Start/Stop) */
+        .iz-engine-btn { width: 140px; height: 140px; margin: 0 auto 30px auto; border-radius: 50%; background: #1e293b; border: 4px solid #334155; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: inset 0 4px 10px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3); outline: none; }
+        .iz-engine-btn i { font-size: 40px; color: #64748b; margin-bottom: 8px; transition: all 0.3s; }
+        .iz-engine-btn span { font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s; }
+        
+        .iz-engine-btn:hover { border-color: #475569; transform: scale(1.02); }
+        .iz-engine-btn:active { transform: scale(0.95); }
+        
+        /* Stato Motore ACCESO con illuminazione */
+        .iz-engine-btn.engine-on { background: #16a34a; border-color: #22c55e; box-shadow: 0 0 40px rgba(34, 197, 94, 0.7), inset 0 4px 10px rgba(0,0,0,0.2); }
+        .iz-engine-btn.engine-on i { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+        .iz-engine-btn.engine-on span { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+
+        /* Controlli Secondari */
+        .iz-secondary-controls { display: flex; justify-content: center; gap: 20px; }
+        .iz-control-btn { width: 60px; height: 60px; border-radius: 50%; background: #1e293b; color: #cbd5e1; border: none; font-size: 20px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; outline: none; }
+        .iz-control-btn:hover { background: #334155; color: #fff; }
+        
+        /* Stato Portiere BLOCCATE con illuminazione */
+        .iz-control-btn.active { background: #2563eb; color: #fff; box-shadow: 0 0 20px rgba(37,99,235,0.7); }
+        
+        /* Effetto di breve illuminazione per feedback */
+        .iz-control-btn.activated { animation: prompt-illuminate 0.5s ease-out; }
+        @keyframes prompt-illuminate { 
+            0% { background: #1e293b; color: #cbd5e1; } 
+            20% { background: #fca5a5; color: #7f1d1d; box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+            100% { background: #1e293b; color: #cbd5e1; }
+        }
+
+        /* Notifiche Toast */
+        .iz-toast { background: #334155; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-block; margin-top: 20px; opacity: 0; transition: opacity 0.3s; }
+        .iz-toast.show { opacity: 1; }
+
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <div class="iz-card">
+        <h2 class="iz-title">I Tuoi Noleggi Attivi</h2>
+        <p class="iz-subtitle">Seleziona un veicolo per accedere alla chiave digitale.</p>
+        
+        <div class="iz-rental-list" id="iz-user-rentals">
+            </div>
+    </div>
+
+    <div id="iz-digital-key-container" class="hidden fade-in">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #0f172a;">Smart Key Interattiva</h3>
+            <button onclick="deselectVehicle()" style="background:transparent; border:none; color:#dc2626; font-weight:700; cursor:pointer; font-size:14px;"><i class="fa-solid fa-xmark"></i> Chiudi Chiave</button>
+        </div>
+
+        <div class="iz-key-panel">
+            <div class="iz-key-header">
+                <h3 id="iz-key-model">Modello Veicolo</h3>
+                <p style="margin-bottom: 15px;">Targa: <strong id="iz-key-plate" style="color:#fff;">---</strong> &nbsp;|&nbsp; Batteria: <strong id="iz-key-soc" style="color:#22c55e;">---</strong></p>
+                <div class="iz-coord-display"><i class="fa-solid fa-location-dot"></i> GPS: <span id="iz-key-coords" style="letter-spacing:1px; color:#f0abfc;">---</span></div>
+            </div>
+
+            <button class="iz-engine-btn" id="iz-btn-engine" onclick="toggleEngine()">
+                <i class="fa-solid fa-power-off"></i>
+                <span id="iz-engine-text">Start</span>
+            </button>
+
+            <div class="iz-secondary-controls">
+                <button class="iz-control-btn active" id="iz-btn-lock" onclick="toggleLock()" title="Blocca/Sblocca Portiere">
+                    <i class="fa-solid fa-lock" id="iz-lock-icon"></i>
+                </button>
+                <button class="iz-control-btn" id="iz-btn-lights" onclick="flashLights()" title="Lampeggio Fari">
+                    <i class="fa-regular fa-lightbulb"></i>
+                </button>
+                <button class="iz-control-btn" id="iz-btn-horn" onclick="soundHorn()" title="Suona Clacson">
+                    <i class="fa-solid fa-bullhorn"></i>
+                </button>
+            </div>
+
+            <div class="iz-toast" id="iz-key-toast">Notifica di sistema</div>
+        </div>
+    </div>
+
+    <script>
+        // Dati dei noleggi attivi dell'utente, inclusi lat/lng georiferiti
+        const userRentals = [
+            { id: 'IZ-01', model: 'Fiat 500e Urban', plate: 'GA123AB', soc: '85%', isLocked: true, isEngineOn: false, lat: 40.4735, lng: 17.2450 },
+            { id: 'IZ-05', model: 'Xiaomi Pro 2', plate: 'Monopattino', soc: '42%', isLocked: true, isEngineOn: false, lat: 40.4760, lng: 17.2430 }
+        ];
+
+        let activeVehicle = null;
+        let toastTimeout = null;
+
+        // Renderizza la lista dei veicoli noleggiati
+        function renderRentals() {
+            const container = document.getElementById('iz-user-rentals');
+            container.innerHTML = '';
+            
+            userRentals.forEach(veh => {
+                const item = document.createElement('div');
+                item.className = 'iz-rental-item';
+                item.id = `rental-item-${veh.id}`;
+                item.innerHTML = `
+                    <div class="iz-rental-info">
+                        <h4>${veh.model}</h4>
+                        <p><i class="fa-solid fa-hashtag" style="color:#cbd5e1;"></i> ${veh.id} &nbsp;&bull;&nbsp; <i class="fa-solid fa-battery-three-quarters" style="color:#16a34a;"></i> ${veh.soc}</p>
+                    </div>
+                    <div class="iz-rental-status">In Uso</div>
+                `;
+                
+                item.onclick = () => selectVehicle(veh.id);
+                container.appendChild(item);
+            });
+        }
+
+        // Seleziona un veicolo, mostra la chiave e i dati GPS
+        function selectVehicle(id) {
+            document.querySelectorAll('.iz-rental-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`rental-item-${id}`).classList.add('active');
+            
+            activeVehicle = userRentals.find(v => v.id === id);
+            
+            document.getElementById('iz-key-model').innerText = activeVehicle.model;
+            document.getElementById('iz-key-plate').innerText = activeVehicle.plate;
+            document.getElementById('iz-key-soc').innerText = activeVehicle.soc;
+            // Aggiorna coordinate
+            document.getElementById('iz-key-coords').innerText = activeVehicle.lat + ', ' + activeVehicle.lng;
+            
+            updateKeyUI();
+            
+            document.getElementById('iz-digital-key-container').classList.remove('hidden');
+            showToast("Connessione Bluetooth stabilita.");
+        }
+
+        // Chiude la chiave digitale
+        function deselectVehicle() {
+            document.querySelectorAll('.iz-rental-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('iz-digital-key-container').classList.add('hidden');
+            activeVehicle = null;
+        }
+
+        // Gestione Chiusura/Apertura Portiere con illuminazione glow
+        function toggleLock() {
+            if (!activeVehicle) return;
+
+            if (activeVehicle.isEngineOn && !activeVehicle.isLocked) {
+                showToast("Spegni prima il motore per bloccare il veicolo!");
+                return;
+            }
+
+            activeVehicle.isLocked = !activeVehicle.isLocked;
+            updateKeyUI();
+            
+            if (activeVehicle.isLocked) {
+                showToast("Veicolo bloccato e messo in sicurezza.");
+            } else {
+                showToast("Veicolo sbloccato. Pronto all'uso.");
+            }
+        }
+
+        // Gestione Accensione/Spegnimento Motore con illuminazione glow
+        function toggleEngine() {
+            if (!activeVehicle) return;
+
+            // Sicurezza: non puoi accendere se le portiere sono bloccate
+            if (activeVehicle.isLocked) {
+                showToast("Attenzione: sblocca prima il veicolo!");
+                const btn = document.getElementById('iz-btn-engine');
+                btn.style.transform = "translateX(-5px)";
+                setTimeout(() => btn.style.transform = "translateX(5px)", 100);
+                setTimeout(() => btn.style.transform = "translateX(0)", 200);
+                return; // INTERROMPE LA LOGICA QUI
+            }
+
+            activeVehicle.isEngineOn = !activeVehicle.isEngineOn;
+            updateKeyUI();
+            
+            if (activeVehicle.isEngineOn) {
+                showToast("Motore avviato. Buon viaggio!");
+            } else {
+                showToast("Motore spento correttamente.");
+            }
+        }
+
+        // Feedback visivo breve di illuminazione per luci e clacson
+        function provideBriefIllumination(btnId) {
+            const btn = document.getElementById(btnId);
+            btn.classList.add('activated');
+            setTimeout(() => {
+                btn.classList.remove('activated');
+            }, 500); // Rimuove dopo 0.5 secondi
+        }
+
+        function flashLights() {
+            if(!activeVehicle) return;
+            provideBriefIllumination('iz-btn-lights');
+            showToast("Lampeggio fari attivato.");
+        }
+        
+        function soundHorn() {
+            if(!activeVehicle) return;
+            provideBriefIllumination('iz-btn-horn');
+            showToast("Segnale acustico inviato.");
+        }
+
+        // Aggiorna l'interfaccia utente dei bottoni
+        function updateKeyUI() {
+            const engineBtn = document.getElementById('iz-btn-engine');
+            const engineText = document.getElementById('iz-engine-text');
+            const lockBtn = document.getElementById('iz-btn-lock');
+            const lockIcon = document.getElementById('iz-lock-icon');
+
+            // Stato Motore con illuminazione glow
+            if (activeVehicle.isEngineOn) {
+                engineBtn.classList.add('engine-on');
+                engineText.innerText = 'Stop';
+            } else {
+                engineBtn.classList.remove('engine-on');
+                engineText.innerText = 'Start';
+            }
+
+            // Stato Portiere con illuminazione glow
+            if (activeVehicle.isLocked) {
+                lockBtn.classList.add('active');
+                lockIcon.classList.replace('fa-unlock', 'fa-lock');
+            } else {
+                lockBtn.classList.remove('active');
+                lockIcon.classList.replace('fa-lock', 'fa-unlock');
+            }
+        }
+
+        // Sistema di Notifiche interne
+        function showToast(message) {
+            const toast = document.getElementById('iz-key-toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Inizializza l'app
+        renderRentals();
+    </script>
+</div>

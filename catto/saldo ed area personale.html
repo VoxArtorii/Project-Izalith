@@ -1,0 +1,280 @@
+<div id="izalith-user-app" style="background:#f8fafc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:20px; border-radius:12px; max-width:900px; margin:auto; min-height: 600px;">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-user-app * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        .iz-card { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
+        .iz-title { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 20px; }
+        
+        /* Form Inputs */
+        .iz-form-group { margin-bottom: 15px; }
+        .iz-label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
+        .iz-input { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s; }
+        .iz-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        
+        /* Buttons */
+        .iz-btn { width: 100%; padding: 14px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .iz-btn:hover { background: #1e293b; }
+        .iz-btn-outline { width: 100%; padding: 14px; background: transparent; color: #0f172a; border: 2px solid #e2e8f0; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; }
+        .iz-btn-outline:hover { border-color: #0f172a; }
+        .iz-btn-success { background: #16a34a; color: #fff; }
+        .iz-btn-success:hover { background: #15803d; }
+        
+        /* Dashboard Layout */
+        .iz-dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 600px) { .iz-dash-grid { grid-template-columns: 1fr; } }
+        
+        /* Wallet Section */
+        .iz-wallet-card { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 30px; border-radius: 12px; position: relative; overflow: hidden; }
+        .iz-wallet-card::after { content: '\f0d6'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: -20px; bottom: -30px; font-size: 120px; opacity: 0.1; transform: rotate(-15deg); }
+        .iz-balance-amount { font-size: 42px; font-weight: 800; margin: 10px 0; }
+        
+        /* Top Up Options */
+        .iz-topup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .iz-topup-btn { padding: 15px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-weight: 700; font-size: 18px; color: #0f172a; cursor: pointer; transition: 0.2s; }
+        .iz-topup-btn:hover, .iz-topup-btn.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+        
+        /* History Table */
+        .iz-history-list { display: flex; flex-direction: column; gap: 10px; }
+        .iz-history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        .iz-history-item:last-child { border-bottom: none; }
+        .iz-history-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .iz-icon-plus { background: #dcfce7; color: #16a34a; }
+        .iz-icon-minus { background: #fee2e2; color: #dc2626; }
+        
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <div id="iz-view-login" class="fade-in">
+        <div class="iz-card" style="max-width: 400px; margin: 40px auto; padding: 40px 30px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <i class="fa-solid fa-bolt" style="font-size: 40px; color: #2563eb; margin-bottom: 15px;"></i>
+                <h2 class="iz-title" style="margin-bottom: 5px;">Izalith Mobility</h2>
+                <p style="color: #64748b; font-size: 14px;">Accedi alla tua area personale</p>
+            </div>
+            
+            <form id="iz-login-form" onsubmit="handleLogin(event)">
+                <div class="iz-form-group">
+                    <label class="iz-label">Email</label>
+                    <input type="email" class="iz-input" placeholder="mario.rossi@email.it" required id="login-email">
+                </div>
+                <div class="iz-form-group">
+                    <label class="iz-label">Password</label>
+                    <input type="password" class="iz-input" placeholder="••••••••" required>
+                </div>
+                <div style="text-align: right; margin-bottom: 20px;">
+                    <a href="#" style="font-size: 13px; color: #2563eb; text-decoration: none; font-weight: 600;">Password dimenticata?</a>
+                </div>
+                
+                <button type="submit" class="iz-btn"><i class="fa-solid fa-right-to-bracket"></i> Accedi</button>
+                <div style="text-align: center; margin: 20px 0; color: #94a3b8; font-size: 14px;">oppure</div>
+                <button type="button" class="iz-btn-outline"><i class="fa-solid fa-user-plus"></i> Crea un nuovo account</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="iz-view-dashboard" class="hidden fade-in">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <div>
+                <h2 class="iz-title" style="margin-bottom: 0;">Bentornato, <span id="iz-user-name">Utente</span>!</h2>
+                <p style="color: #64748b; font-size: 14px;">ID Utente: UT-884920</p>
+            </div>
+            <button class="iz-btn-outline" style="width: auto; padding: 8px 15px; font-size: 13px;" onclick="handleLogout()">
+                <i class="fa-solid fa-power-off"></i> Esci
+            </button>
+        </div>
+
+        <div class="iz-dash-grid">
+            <div>
+                <div class="iz-wallet-card" style="margin-bottom: 20px;">
+                    <p style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8;">Saldo Disponibile</p>
+                    <div class="iz-balance-amount" id="iz-wallet-balance">€ 0,00</div>
+                    <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 20px;"><i class="fa-solid fa-shield-halved"></i> Credito utilizzabile per tutti i veicoli della flotta.</p>
+                    <button class="iz-btn iz-btn-success" onclick="toggleTopUp()"><i class="fa-solid fa-plus"></i> Ricarica Saldo</button>
+                </div>
+
+                <div id="iz-topup-section" class="iz-card hidden fade-in">
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Seleziona Importo</h3>
+                    <div class="iz-topup-grid">
+                        <button class="iz-topup-btn" onclick="selectAmount(10, this)">€10</button>
+                        <button class="iz-topup-btn" onclick="selectAmount(20, this)">€20</button>
+                        <button class="iz-topup-btn" onclick="selectAmount(50, this)">€50</button>
+                    </div>
+                    <div class="iz-form-group">
+                        <label class="iz-label">O inserisci importo personalizzato</label>
+                        <input type="number" id="iz-custom-amount" class="iz-input" placeholder="Es. 15" min="5" step="1" oninput="clearSelection()">
+                    </div>
+                    <button class="iz-btn" onclick="processTopUp()"><i class="fa-brands fa-cc-mastercard"></i> Procedi al Pagamento</button>
+                    <button class="iz-btn-outline" style="margin-top: 10px; border:none;" onclick="toggleTopUp()">Annulla</button>
+                </div>
+
+                <div class="iz-card">
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Azioni Rapide</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="iz-btn-outline" style="justify-content: flex-start; text-align:left;"><i class="fa-solid fa-map-location-dot" style="width:25px;"></i> Trova un veicolo</button>
+                        <button class="iz-btn-outline" style="justify-content: flex-start; text-align:left;"><i class="fa-solid fa-ticket" style="width:25px;"></i> I miei abbonamenti</button>
+                        <button class="iz-btn-outline" style="justify-content: flex-start; text-align:left;"><i class="fa-solid fa-headset" style="width:25px;"></i> Richiedi Assistenza</button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="iz-card" style="height: 100%;">
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Movimenti Recenti</h3>
+                    <div class="iz-history-list" id="iz-history-container">
+                        </div>
+                    
+                    <div id="iz-empty-history" class="hidden" style="text-align: center; padding: 30px 10px; color: #94a3b8;">
+                        <i class="fa-solid fa-receipt" style="font-size: 30px; margin-bottom: 10px;"></i>
+                        <p>Nessun movimento recente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- STATO DELL'UTENTE ---
+        let userData = {
+            name: "Ospite",
+            balance: 12.50, // Saldo iniziale di test
+            selectedTopUp: 0,
+            transactions: [
+                { type: 'trip', desc: 'Noleggio Fiat 500e (IZ-01)', amount: -8.50, date: 'Oggi, 14:30' },
+                { type: 'topup', desc: 'Ricarica da MasterCard', amount: 20.00, date: 'Ieri, 10:15' },
+                { type: 'trip', desc: 'Noleggio Vespa Elettrica', amount: -4.00, date: '18 Mag, 18:45' }
+            ]
+        };
+
+        // --- GESTIONE ACCESSO (LOGIN/LOGOUT) ---
+        function handleLogin(e) {
+            e.preventDefault();
+            
+            // Estrapola il nome dall'email per simulare personalizzazione
+            const emailInput = document.getElementById('login-email').value;
+            const namePart = emailInput.split('@')[0];
+            userData.name = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace('.', ' ');
+
+            // Transizione UI
+            document.getElementById('iz-view-login').classList.add('hidden');
+            document.getElementById('iz-view-dashboard').classList.remove('hidden');
+            
+            // Inizializza la Dashboard
+            document.getElementById('iz-user-name').innerText = userData.name;
+            updateDashboardUI();
+        }
+
+        function handleLogout() {
+            document.getElementById('iz-view-dashboard').classList.add('hidden');
+            document.getElementById('iz-view-login').classList.remove('hidden');
+            document.getElementById('iz-login-form').reset();
+        }
+
+        // --- GESTIONE SALDO E CRONOLOGIA ---
+        function updateDashboardUI() {
+            // Aggiorna testo Saldo
+            document.getElementById('iz-wallet-balance').innerText = '€ ' + userData.balance.toFixed(2).replace('.', ',');
+
+            // Aggiorna Cronologia
+            const historyContainer = document.getElementById('iz-history-container');
+            const emptyMsg = document.getElementById('iz-empty-history');
+            
+            historyContainer.innerHTML = '';
+            
+            if(userData.transactions.length === 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+                userData.transactions.forEach(t => {
+                    const isPositive = t.amount > 0;
+                    const iconClass = isPositive ? 'fa-arrow-down' : 'fa-car';
+                    const bgClass = isPositive ? 'iz-icon-plus' : 'iz-icon-minus';
+                    const amountStr = (isPositive ? '+ € ' : '- € ') + Math.abs(t.amount).toFixed(2).replace('.', ',');
+                    const amountColor = isPositive ? '#16a34a' : '#0f172a';
+
+                    historyContainer.innerHTML += `
+                        <div class="iz-history-item">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="iz-history-icon ${bgClass}"><i class="fa-solid ${iconClass}"></i></div>
+                                <div>
+                                    <h4 style="font-size: 14px; color: #1e293b; margin-bottom: 2px;">${t.desc}</h4>
+                                    <p style="font-size: 12px; color: #64748b;">${t.date}</p>
+                                </div>
+                            </div>
+                            <div style="font-weight: 800; font-size: 15px; color: ${amountColor};">${amountStr}</div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // --- GESTIONE RICARICA (TOP-UP) ---
+        function toggleTopUp() {
+            const section = document.getElementById('iz-topup-section');
+            section.classList.toggle('hidden');
+            // Reset campi quando si chiude
+            if(section.classList.contains('hidden')) {
+                clearSelection();
+                document.getElementById('iz-custom-amount').value = '';
+            }
+        }
+
+        function selectAmount(amount, btnElement) {
+            clearSelection();
+            btnElement.classList.add('active');
+            userData.selectedTopUp = amount;
+            document.getElementById('iz-custom-amount').value = ''; // Pulisce il campo manuale
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.iz-topup-btn').forEach(b => b.classList.remove('active'));
+            userData.selectedTopUp = 0;
+        }
+
+        function processTopUp() {
+            let amountToAdd = userData.selectedTopUp;
+            const customInput = document.getElementById('iz-custom-amount').value;
+            
+            if (customInput && customInput > 0) {
+                amountToAdd = parseFloat(customInput);
+            }
+
+            if (amountToAdd <= 0) {
+                alert("Per favore, seleziona o inserisci un importo valido per la ricarica.");
+                return;
+            }
+
+            // Simula elaborazione pagamento
+            const btn = document.querySelector('#iz-topup-section .iz-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Elaborazione in corso...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                // Aggiorna saldo
+                userData.balance += amountToAdd;
+                
+                // Aggiungi alla cronologia (in cima alla lista)
+                userData.transactions.unshift({
+                    type: 'topup',
+                    desc: 'Ricarica Wallet (App)',
+                    amount: amountToAdd,
+                    date: 'Appena effettuata'
+                });
+
+                // Ripristina UI
+                updateDashboardUI();
+                toggleTopUp();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                alert(`✅ Ricarica di € ${amountToAdd.toFixed(2).replace('.', ',')} completata con successo!`);
+            }, 1000);
+        }
+    </script>
+</div>

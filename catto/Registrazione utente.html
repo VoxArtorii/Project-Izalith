@@ -1,0 +1,278 @@
+<div id="izalith-registration-app" style="background:#f8fafc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:20px; border-radius:12px; max-width:800px; margin:auto; min-height: 600px;">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-registration-app * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        .iz-card { background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .iz-title { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 10px; text-align: center; }
+        .iz-subtitle { font-size: 14px; color: #64748b; margin-bottom: 30px; text-align: center; }
+        
+        /* Stepper UI */
+        .iz-stepper { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
+        .iz-step-dot { width: 35px; height: 35px; border-radius: 50%; background: #e2e8f0; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; transition: 0.3s; }
+        .iz-step-dot.active { background: #0f172a; color: #fff; box-shadow: 0 0 0 4px #cbd5e1; }
+        .iz-step-dot.completed { background: #16a34a; color: #fff; }
+        
+        /* Layout Input */
+        .iz-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        @media(max-width: 600px) { .iz-form-row { grid-template-columns: 1fr; } }
+        .iz-form-group { margin-bottom: 15px; }
+        
+        .iz-label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
+        .iz-input { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s; background: #fff; }
+        .iz-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        
+        /* Card di Selezione (Selezionabili/Deselezionabili) */
+        .iz-select-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media(max-width: 600px) { .iz-select-grid { grid-template-columns: 1fr; } }
+        
+        .iz-select-card { padding: 15px; border: 2px solid #e2e8f0; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.2s; background: #fff; position: relative; }
+        .iz-select-card i { font-size: 28px; color: #64748b; margin-bottom: 10px; transition: 0.2s; }
+        .iz-select-card h4 { font-size: 14px; color: #0f172a; margin-bottom: 5px; }
+        .iz-select-card p { font-size: 12px; color: #64748b; }
+        
+        /* Stato Selezionato */
+        .iz-select-card:hover { border-color: #94a3b8; }
+        .iz-select-card.active { border-color: #2563eb; background: #eff6ff; }
+        .iz-select-card.active i { color: #2563eb; }
+        .iz-select-card.active::after { content: '\f058'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; top: 10px; right: 10px; color: #2563eb; font-size: 16px; }
+
+        /* Custom Checkbox */
+        .iz-checkbox-wrapper { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 15px; cursor: pointer; }
+        .iz-checkbox { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: #0f172a; }
+        .iz-check-label { font-size: 13.5px; color: #475569; line-height: 1.4; }
+
+        /* Bottoni Navigazione */
+        .iz-nav-buttons { display: flex; justify-content: space-between; gap: 15px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .iz-btn { padding: 14px 25px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
+        .iz-btn:hover { background: #1e293b; }
+        .iz-btn-outline { padding: 14px 25px; background: #fff; color: #0f172a; border: 2px solid #e2e8f0; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.2s; flex: 1; text-align: center; }
+        .iz-btn-outline:hover { border-color: #0f172a; }
+
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <div class="iz-card">
+        <h2 class="iz-title">Unisciti a Izalith</h2>
+        <p class="iz-subtitle">Compila i dati per attivare il tuo profilo e iniziare a guidare.</p>
+        
+        <div class="iz-stepper">
+            <div class="iz-step-dot active" id="dot-1">1</div>
+            <div class="iz-step-dot" id="dot-2">2</div>
+            <div class="iz-step-dot" id="dot-3">3</div>
+        </div>
+
+        <form id="iz-reg-form" onsubmit="event.preventDefault();">
+            
+            <div id="step-1" class="fade-in">
+                <div class="iz-form-row">
+                    <div class="iz-form-group">
+                        <label class="iz-label">Nome</label>
+                        <input type="text" class="iz-input" placeholder="Mario" required id="reg-name">
+                    </div>
+                    <div class="iz-form-group">
+                        <label class="iz-label">Cognome</label>
+                        <input type="text" class="iz-input" placeholder="Rossi" required id="reg-surname">
+                    </div>
+                </div>
+                
+                <div class="iz-form-row">
+                    <div class="iz-form-group">
+                        <label class="iz-label">Codice Fiscale</label>
+                        <input type="text" class="iz-input" placeholder="RSSMRA80A01H501U" style="text-transform: uppercase;" required>
+                    </div>
+                    <div class="iz-form-group">
+                        <label class="iz-label">Data di Nascita</label>
+                        <input type="date" class="iz-input" required>
+                    </div>
+                </div>
+
+                <div class="iz-form-row">
+                    <div class="iz-form-group">
+                        <label class="iz-label">Indirizzo Email</label>
+                        <input type="email" class="iz-input" placeholder="mario.rossi@email.it" required>
+                    </div>
+                    <div class="iz-form-group">
+                        <label class="iz-label">Cellulare</label>
+                        <input type="tel" class="iz-input" placeholder="+39 333 1234567" required>
+                    </div>
+                </div>
+
+                <div class="iz-nav-buttons">
+                    <button type="button" class="iz-btn" style="flex: 2;" onclick="nextStep(2)">Avanti: Documenti <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i></button>
+                </div>
+            </div>
+
+            <div id="step-2" class="hidden fade-in">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color:#0f172a;">Cosa hai intenzione di guidare?</h3>
+                <p style="font-size: 13px; color:#64748b; margin-top:-10px; margin-bottom: 15px;">Clicca per selezionare o deselezionare. La selezione determina i documenti richiesti.</p>
+                
+                <div class="iz-select-grid">
+                    <div class="iz-select-card" id="card-micro" onclick="toggleVehicle('micro', this)">
+                        <i class="fa-solid fa-kick-scooter"></i>
+                        <h4>Monopattini</h4>
+                        <p>Nessuna patente</p>
+                    </div>
+                    <div class="iz-select-card" id="card-moto" onclick="toggleVehicle('moto', this)">
+                        <i class="fa-solid fa-motorcycle"></i>
+                        <h4>Scooter</h4>
+                        <p>Patente AM / B</p>
+                    </div>
+                    <div class="iz-select-card" id="card-auto" onclick="toggleVehicle('auto', this)">
+                        <i class="fa-solid fa-car"></i>
+                        <h4>Automobili</h4>
+                        <p>Patente B</p>
+                    </div>
+                </div>
+
+                <div class="iz-form-group">
+                    <label class="iz-label">Documento d'Identità (Carta d'Identità / Passaporto)</label>
+                    <input type="text" class="iz-input" placeholder="Numero Documento" required>
+                </div>
+
+                <div id="iz-license-fields" class="hidden fade-in" style="background:#f1f5f9; padding:20px; border-radius:8px; margin-top:20px; border:1px solid #cbd5e1;">
+                    <h4 style="margin-bottom: 15px; color:#1e3a8a; font-size:14px;"><i class="fa-solid fa-id-card"></i> Dati Patente di Guida</h4>
+                    <div class="iz-form-row">
+                        <div class="iz-form-group" style="margin-bottom:0;">
+                            <label class="iz-label">Numero Patente</label>
+                            <input type="text" class="iz-input" placeholder="Es. U1A9988776">
+                        </div>
+                        <div class="iz-form-group" style="margin-bottom:0;">
+                            <label class="iz-label">Data di Scadenza</label>
+                            <input type="date" class="iz-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="iz-nav-buttons">
+                    <button type="button" class="iz-btn-outline" onclick="prevStep(1)">Indietro</button>
+                    <button type="button" class="iz-btn" onclick="nextStep(3)">Avanti: Password <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i></button>
+                </div>
+            </div>
+
+            <div id="step-3" class="hidden fade-in">
+                
+                <div class="iz-form-row">
+                    <div class="iz-form-group">
+                        <label class="iz-label">Crea Password</label>
+                        <input type="password" class="iz-input" placeholder="Minimo 8 caratteri" required>
+                    </div>
+                    <div class="iz-form-group">
+                        <label class="iz-label">Conferma Password</label>
+                        <input type="password" class="iz-input" placeholder="Ripeti password" required>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
+                    <label class="iz-checkbox-wrapper">
+                        <input type="checkbox" class="iz-checkbox" required>
+                        <span class="iz-check-label">Ho letto e accetto i <a href="#" style="color:#2563eb;">Termini e Condizioni</a> del servizio di noleggio Izalith. *</span>
+                    </label>
+                    <label class="iz-checkbox-wrapper">
+                        <input type="checkbox" class="iz-checkbox" required>
+                        <span class="iz-check-label">Acconsento al trattamento dei miei dati personali secondo la <a href="#" style="color:#2563eb;">Privacy Policy</a>. *</span>
+                    </label>
+                    <label class="iz-checkbox-wrapper">
+                        <input type="checkbox" class="iz-checkbox">
+                        <span class="iz-check-label">Desidero ricevere comunicazioni promozionali e sconti dedicati (Facoltativo).</span>
+                    </label>
+                </div>
+
+                <div class="iz-nav-buttons">
+                    <button type="button" class="iz-btn-outline" onclick="prevStep(2)">Indietro</button>
+                    <button type="button" class="iz-btn" style="background:#16a34a;" onclick="submitRegistration()"><i class="fa-solid fa-check" style="margin-right:8px;"></i> Crea Account</button>
+                </div>
+            </div>
+
+            <div id="step-success" class="hidden fade-in" style="text-align: center; padding: 40px 20px;">
+                <i class="fa-solid fa-circle-check" style="font-size: 60px; color: #16a34a; margin-bottom: 20px;"></i>
+                <h2 class="iz-title">Registrazione Completata!</h2>
+                <p class="iz-subtitle" style="margin-bottom: 30px;">Benvenuto in Izalith, <strong id="success-name"></strong>. Il tuo account è in fase di verifica documentale. Riceverai un'email di conferma a breve.</p>
+                <button type="button" class="iz-btn" style="width: auto; padding: 14px 40px;" onclick="alert('Redirect all\'area utente...')">Vai alla tua Area Personale</button>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+        let selectedVehicles = [];
+
+        // Gestione Navigazione Step
+        function nextStep(stepNumber) {
+            document.querySelectorAll('div[id^="step-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('step-' + stepNumber).classList.remove('hidden');
+            
+            // Aggiorna indicatori visivi
+            document.querySelectorAll('.iz-step-dot').forEach((dot, index) => {
+                if(index < stepNumber - 1) {
+                    dot.classList.add('completed');
+                    dot.classList.remove('active');
+                } else if (index === stepNumber - 1) {
+                    dot.classList.add('active');
+                    dot.classList.remove('completed');
+                } else {
+                    dot.classList.remove('active', 'completed');
+                }
+            });
+        }
+
+        function prevStep(stepNumber) {
+            nextStep(stepNumber); // La logica visiva è la stessa
+        }
+
+        // Gestione Logica Seleziona/Deseleziona (Toggle Veicoli)
+        function toggleVehicle(vehicleType, cardElement) {
+            const index = selectedVehicles.indexOf(vehicleType);
+            
+            // Se già selezionato, lo deseleziona
+            if (index > -1) {
+                selectedVehicles.splice(index, 1);
+                cardElement.classList.remove('active');
+            } else {
+                // Altrimenti lo seleziona
+                selectedVehicles.push(vehicleType);
+                cardElement.classList.add('active');
+            }
+
+            // Mostra o nasconde i campi della Patente in base alla selezione
+            const licenseFields = document.getElementById('iz-license-fields');
+            const licenseInputs = licenseFields.querySelectorAll('input');
+
+            if (selectedVehicles.includes('moto') || selectedVehicles.includes('auto')) {
+                licenseFields.classList.remove('hidden');
+                // Rende i campi patente obbligatori
+                licenseInputs.forEach(input => input.setAttribute('required', 'true'));
+            } else {
+                licenseFields.classList.add('hidden');
+                // Rimuove l'obbligo se guida solo monopattini
+                licenseInputs.forEach(input => {
+                    input.removeAttribute('required');
+                    input.value = ''; // Pulisce i campi
+                });
+            }
+        }
+
+        // Gestione Invio Finale
+        function submitRegistration() {
+            // Simulazione validazione HTML5 base
+            const form = document.getElementById('iz-reg-form');
+            if(!form.checkValidity()) {
+                alert("Per favore, compila tutti i campi obbligatori contrassegnati con l'asterisco.");
+                return;
+            }
+
+            // Cattura il nome per il messaggio di successo
+            const nomeUtente = document.getElementById('reg-name').value;
+            document.getElementById('success-name').innerText = nomeUtente;
+
+            // Nasconde tutto e mostra la schermata di successo
+            document.getElementById('step-3').classList.add('hidden');
+            document.querySelector('.iz-stepper').classList.add('hidden');
+            document.getElementById('step-success').classList.remove('hidden');
+        }
+    </script>
+</div>

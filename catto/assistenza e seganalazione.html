@@ -1,0 +1,239 @@
+<div id="izalith-support-app" style="background:#f4f6f8; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:20px; border-radius:12px; max-width:1100px; margin:auto;">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-support-app * { box-sizing: border-box; }
+        .iz-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+        @media(max-width: 800px) { .iz-grid { grid-template-columns: 1fr; } }
+        
+        .iz-card { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .iz-card-title { margin-top: 0; font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; display: inline-block; color: #111; }
+        
+        /* Form Segnalazioni */
+        .iz-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #444; }
+        .iz-input, .iz-textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; font-family: inherit; margin-bottom: 20px; outline: none; transition: border 0.2s; }
+        .iz-input:focus, .iz-textarea:focus { border-color: #000; }
+        .iz-textarea { resize: vertical; min-height: 120px; }
+        
+        /* Bottoni Categorie */
+        .iz-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        @media(max-width: 500px) { .iz-cat-grid { grid-template-columns: 1fr; } }
+        .iz-cat-btn { padding: 12px; background: #fff; border: 1.5px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; text-align: left; transition: all 0.2s; color: #333; display: flex; align-items: center; gap: 10px; }
+        .iz-cat-btn:hover { background: #f9f9f9; border-color: #aaa; }
+        .iz-cat-btn.active { background: #000; color: #fff; border-color: #000; }
+        
+        /* Upload File fittizio */
+        .iz-file-upload { border: 2px dashed #ccc; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; color: #666; margin-bottom: 20px; transition: 0.2s; }
+        .iz-file-upload:hover { border-color: #000; color: #000; background: #fafafa; }
+        
+        /* Bottoni Azione */
+        .iz-btn { width: 100%; padding: 15px; background: #000; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        .iz-btn:hover { background: #333; }
+        
+        .iz-btn-sos { width: 100%; padding: 15px; background: #d32f2f; color: #fff; border: none; border-radius: 8px; font-weight: 800; font-size: 18px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3); }
+        .iz-btn-sos:hover { background: #b71c1c; }
+        
+        /* Contatti */
+        .iz-contact-item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #eee; }
+        .iz-contact-item:last-child { border-bottom: none; }
+        .iz-contact-icon { width: 40px; height: 40px; border-radius: 50%; background: #f4f6f8; display: flex; justify-content: center; align-items: center; font-size: 18px; color: #000; }
+        .iz-contact-text h4 { margin: 0 0 5px 0; font-size: 15px; color: #111; }
+        .iz-contact-text p { margin: 0; font-size: 14px; color: #666; }
+        
+        .hidden { display: none !important; }
+        
+        /* Messaggio Successo */
+        .iz-success-msg { text-align: center; padding: 40px 20px; }
+        .iz-success-msg i { font-size: 50px; color: #388e3c; margin-bottom: 15px; }
+        .iz-success-msg h3 { font-size: 22px; margin-bottom: 10px; }
+    </style>
+
+    <div class="iz-grid">
+        
+        <div class="iz-main">
+            <div class="iz-card" id="iz-report-form">
+                <h2 class="iz-card-title">Segnala un Problema</h2>
+                <p style="font-size:14px; color:#666; margin-top:-10px; margin-bottom:20px;">
+                    Usa questo modulo per inviare una segnalazione al nostro team tecnico. Puoi selezionare più opzioni.
+                </p>
+                
+                <label class="iz-label">Veicolo Coinvolto (Opzionale)</label>
+                <input type="text" class="iz-input" placeholder="Es. IZ-01 (Fiat 500e) o lascia vuoto" id="iz-rep-veh">
+                
+                <label class="iz-label">Tipologia di Problema (Selezione Multipla)</label>
+                <div class="iz-cat-grid">
+                    <button class="iz-cat-btn" onclick="selectIssue('Danni Esterni', this)"><i class="fa-solid fa-car-burst"></i> Danni Esterni / Carrozzeria</button>
+                    <button class="iz-cat-btn" onclick="selectIssue('Batteria/Motore', this)"><i class="fa-solid fa-car-battery"></i> Problema Batteria / Motore</button>
+                    <button class="iz-cat-btn" onclick="selectIssue('Pulizia', this)"><i class="fa-solid fa-broom"></i> Veicolo Sporco / Interni</button>
+                    <button class="iz-cat-btn" onclick="selectIssue('App/Sblocco', this)"><i class="fa-solid fa-mobile-screen"></i> Problemi App / Sblocco</button>
+                    <button class="iz-cat-btn" onclick="selectIssue('Pneumatici', this)"><i class="fa-solid fa-compact-disc"></i> Problema Pneumatici</button>
+                    <button class="iz-cat-btn" onclick="selectIssue('Altro', this)"><i class="fa-solid fa-circle-question"></i> Altre Problematiche</button>
+                </div>
+                
+                <label class="iz-label">Dettagli Segnalazione</label>
+                <textarea class="iz-textarea" id="iz-rep-details" placeholder="Descrivi il/i problema/i nel dettaglio..."></textarea>
+                
+                <div class="iz-file-upload" onclick="document.getElementById('iz-file-input').click()">
+                    <i class="fa-solid fa-camera" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+                    <span style="font-size:14px; font-weight:600;">Clicca per allegare foto (Max 3)</span>
+                    <input type="file" id="iz-file-input" class="hidden" accept="image/*" multiple onchange="showFileName()">
+                    <div id="iz-file-name" style="margin-top:10px; font-size:13px; color:#000; font-weight:bold;"></div>
+                </div>
+                
+                <button class="iz-btn" onclick="submitReport()">Invia Segnalazione</button>
+            </div>
+            
+            <div class="iz-card hidden" id="iz-report-success">
+                <div class="iz-success-msg">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <h3>Segnalazione Ricevuta</h3>
+                    <p>Grazie per il tuo contributo. Il nostro team tecnico ha preso in carico la richiesta (Ticket #<span id="iz-ticket-id"></span>) e interverrà al più presto.</p>
+                    <button class="iz-btn" style="margin-top:20px; width:auto; padding:10px 30px;" onclick="resetReport()">Invia un'altra segnalazione</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="iz-sidebar">
+            
+            <div class="iz-card" style="border-color:#ffcdd2; background:#fffafb;">
+                <h2 class="iz-card-title" style="color:#d32f2f; border-bottom-color:#d32f2f;">Emergenza</h2>
+                <p style="font-size:14px; color:#444; margin-bottom:20px; line-height:1.5;">
+                    Sei stato coinvolto in un incidente grave, il veicolo è in fiamme o ti trovi in una situazione di pericolo immediato?
+                </p>
+                <button class="iz-btn-sos" onclick="triggerSOS()">
+                    <i class="fa-solid fa-triangle-exclamation"></i> TASTO SOS
+                </button>
+                <p style="font-size:12px; color:#d32f2f; text-align:center; margin-top:10px; font-weight:600;">
+                    Attenzione: Usa questo tasto solo per reali emergenze. Il tasto avviserà automaticamente i soccorsi e bloccherà il mezzo.
+                </p>
+            </div>
+            
+            <div class="iz-card">
+                <h2 class="iz-card-title">Assistenza Clienti</h2>
+                <p style="font-size:14px; color:#666; margin-top:-10px; margin-bottom:20px;">
+                    Il nostro team è attivo tutti i giorni dalle 06:00 alle 00:00.
+                </p>
+                
+                <div class="iz-contact-item">
+                    <div class="iz-contact-icon"><i class="fa-solid fa-phone"></i></div>
+                    <div class="iz-contact-text">
+                        <h4>Numero Verde Gratuito</h4>
+                        <p>800 123 456</p>
+                    </div>
+                </div>
+                
+                <div class="iz-contact-item">
+                    <div class="iz-contact-icon" style="color:#25D366;"><i class="fa-brands fa-whatsapp"></i></div>
+                    <div class="iz-contact-text">
+                        <h4>Chat WhatsApp</h4>
+                        <p>+39 340 1234567</p>
+                    </div>
+                </div>
+                
+                <div class="iz-contact-item">
+                    <div class="iz-contact-icon"><i class="fa-regular fa-envelope"></i></div>
+                    <div class="iz-contact-text">
+                        <h4>Email Supporto</h4>
+                        <p>support@izalith.it</p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+    </div>
+
+    <script>
+        // Array per gestire la selezione multipla delle problematiche
+        let selectedIssues = [];
+
+        function selectIssue(issueName, btnElement) {
+            let txt = document.getElementById('iz-rep-details');
+
+            // Se la categoria è già selezionata, rimuovila (Deseleziona)
+            if (selectedIssues.includes(issueName)) {
+                selectedIssues = selectedIssues.filter(item => item !== issueName);
+                btnElement.classList.remove('active');
+            } else {
+                // Altrimenti, aggiungila all'array (Seleziona)
+                selectedIssues.push(issueName);
+                btnElement.classList.add('active');
+            }
+            
+            // Gestione Placeholder dinamico
+            if(selectedIssues.includes('Altro')) {
+                txt.placeholder = "Specifica i dettagli e il tipo di problematica esterna o non listata...";
+            } else {
+                txt.placeholder = "Descrivi il/i problema/i nel dettaglio...";
+            }
+        }
+
+        function showFileName() {
+            const input = document.getElementById('iz-file-input');
+            const nameDisplay = document.getElementById('iz-file-name');
+            if (input.files && input.files.length > 0) {
+                if(input.files.length === 1) {
+                    nameDisplay.innerText = "File allegato: " + input.files[0].name;
+                } else {
+                    nameDisplay.innerText = input.files.length + " file allegati pronti per l'invio.";
+                }
+                nameDisplay.style.color = "#388e3c";
+            }
+        }
+
+        function submitReport() {
+            const details = document.getElementById('iz-rep-details').value.trim();
+            
+            // Controllo: nessuna categoria selezionata E nessun testo inserito
+            if(selectedIssues.length === 0 && details === '') {
+                alert("Per favore, seleziona almeno una categoria o descrivi il problema nel campo di testo.");
+                document.getElementById('iz-rep-details').focus();
+                return;
+            }
+            
+            // Controllo: ha selezionato 'Altro' ma non ha scritto nulla
+            if(selectedIssues.includes('Altro') && details === '') {
+                alert("Hai selezionato 'Altre Problematiche'. Per favore, descrivi i dettagli nel campo di testo.");
+                document.getElementById('iz-rep-details').focus();
+                return;
+            }
+            
+            // Genera Ticket Fittizio
+            const ticketId = Math.floor(100000 + Math.random() * 900000);
+            document.getElementById('iz-ticket-id').innerText = "IZ-" + ticketId;
+            
+            // Scambia le schermate
+            document.getElementById('iz-report-form').classList.add('hidden');
+            document.getElementById('iz-report-success').classList.remove('hidden');
+            
+            // Scorri in alto
+            document.getElementById('izalith-support-app').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetReport() {
+            // Reset campi e selezioni
+            document.getElementById('iz-rep-veh').value = '';
+            document.getElementById('iz-rep-details').value = '';
+            document.getElementById('iz-file-input').value = '';
+            document.getElementById('iz-file-name').innerText = '';
+            
+            selectedIssues = [];
+            document.querySelectorAll('.iz-cat-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('iz-rep-details').placeholder = "Descrivi il/i problema/i nel dettaglio...";
+            
+            // Torna al form
+            document.getElementById('iz-report-success').classList.add('hidden');
+            document.getElementById('iz-report-form').classList.remove('hidden');
+        }
+
+        function triggerSOS() {
+            let confirmation = confirm("ATTENZIONE!\nStai per inviare un segnale di SOS alla centrale operativa e bloccare il veicolo.\n\nProcedere solo in caso di reale emergenza. Confermi?");
+            if(confirmation) {
+                alert("🔴 SEGNALE SOS INVIATO.\nLa centrale operativa Izalith sta localizzando il veicolo tramite GPS. Il protocollo di sicurezza è stato attivato.\n\nSe ci sono feriti, chiama immediatamente il 112.");
+            }
+        }
+    </script>
+</div>

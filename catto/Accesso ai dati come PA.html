@@ -1,0 +1,329 @@
+<div id="izalith-pa-dashboard" style="background:#f8fafc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; padding:20px; border-radius:12px; max-width:1200px; margin:auto;">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-pa-dashboard * { box-sizing: border-box; margin: 0; padding: 0; }
+        .iz-pa-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 700px;}
+        @media(max-width: 900px) { .iz-pa-grid { grid-template-columns: 1fr; } }
+        
+        .iz-card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
+        .iz-title { font-size: 18px; font-weight: 700; color: #1e3a8a; margin-bottom: 15px; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; display: inline-block; }
+        
+        /* Menu di Navigazione Istituzionale */
+        .iz-nav-menu { display: flex; flex-direction: column; gap: 8px; }
+        .iz-nav-btn { padding: 14px; background: transparent; border: none; border-radius: 8px; text-align: left; font-size: 15px; font-weight: 600; color: #475569; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px; border: 1px solid transparent; }
+        .iz-nav-btn i { width: 20px; text-align: center; font-size: 18px; }
+        .iz-nav-btn:hover { background: #eff6ff; color: #1e3a8a; border-color: #bfdbfe; }
+        .iz-nav-btn.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+        
+        /* Layout Schede */
+        .iz-tab-content { display: none; animation: fadeIn 0.3s; }
+        .iz-tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Mappa Tracciamento */
+        #iz-pa-map { height: 500px; width: 100%; border-radius: 10px; border: 1px solid #cbd5e1; }
+        
+        /* Liste Interattive */
+        .iz-list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .iz-selectable-item { padding: 15px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: 0.2s; background: #fff; position: relative; overflow: hidden; }
+        .iz-selectable-item:hover { border-color: #94a3b8; background: #f8fafc; }
+        .iz-selectable-item.active { border-color: #1e3a8a; background: #eff6ff; box-shadow: 0 0 0 1px #1e3a8a; }
+        
+        /* Tag di stato severità */
+        .iz-tag { position: absolute; top: 15px; right: 15px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+        .iz-tag-red { background: #fee2e2; color: #dc2626; }
+        .iz-tag-orange { background: #ffedd5; color: #ea580c; }
+        
+        /* Tabelle Dati Sensibili Utente */
+        .iz-data-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .iz-data-table th, .iz-data-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .iz-data-table th { background: #f1f5f9; color: #334155; font-weight: 700; width: 35%; border-right: 1px solid #e2e8f0; }
+        .iz-data-table td { color: #0f172a; font-weight: 500; }
+        
+        /* Pannelli di dettaglio */
+        .iz-detail-panel { margin-top:20px; border-left: 4px solid #1e3a8a; background: #f8fafc; }
+        
+        /* Bottoni Azione */
+        .iz-btn-outline { padding: 8px 15px; background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .iz-btn-outline:hover { background: #1e3a8a; color: #fff; }
+        .iz-btn-action { padding: 12px 20px; background: #1e3a8a; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 15px; display: inline-flex; align-items: center; gap: 8px; }
+        
+        .hidden { display: none !important; }
+    </style>
+
+    <div class="iz-pa-grid">
+        
+        <div class="iz-card" style="padding:15px; background: #fff;">
+            <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
+                <i class="fa-solid fa-building-columns" style="font-size: 32px; color:#1e3a8a; margin-bottom: 10px;"></i>
+                <h2 style="font-size: 18px; color: #0f172a; font-weight: 800;">Portale PA</h2>
+                <p style="font-size: 12px; color: #64748b;">Accesso Autorità Competenti</p>
+            </div>
+            
+            <div class="iz-nav-menu">
+                <button class="iz-nav-btn active" onclick="switchPaTab('tab-tracciamento', this)"><i class="fa-solid fa-route"></i> Tracciamento Spostamenti</button>
+                <button class="iz-nav-btn" onclick="switchPaTab('tab-infrazioni', this)"><i class="fa-solid fa-file-invoice"></i> Dati Infrazioni ZTL</button>
+                <button class="iz-nav-btn" onclick="switchPaTab('tab-sinistri', this)"><i class="fa-solid fa-car-burst"></i> Dati Sinistri Stradali</button>
+            </div>
+        </div>
+
+        <div class="iz-content-area">
+            
+            <div id="tab-tracciamento" class="iz-tab-content active">
+                <div class="iz-card">
+                    <h3 class="iz-title">Tracciamento Storico Veicoli (GPS Telemetry)</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Seleziona un veicolo per tracciare il suo percorso storico nelle ultime 2h.</p>
+                    
+                    <div class="iz-list-grid" id="iz-track-list" style="margin-bottom: 20px;">
+                        </div>
+
+                    <div id="iz-pa-map"></div>
+                </div>
+            </div>
+
+            <div id="tab-infrazioni" class="iz-tab-content">
+                <div class="iz-card">
+                    <h3 class="iz-title">Accesso Anagrafica: Infrazioni e ZTL</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Seleziona una violazione rilevata per accedere ai dati sensibili del conducente al momento dell'infrazione.</p>
+                    
+                    <div class="iz-list-grid" id="iz-infractions-list">
+                        </div>
+
+                    <div id="iz-infraction-details" class="iz-card iz-detail-panel hidden">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="font-size:16px; color:#1e3a8a;"><i class="fa-solid fa-user-shield"></i> Dati Sensibili Conducente (Art. 126 C.d.S.)</h4>
+                            <button class="iz-btn-outline" onclick="deselectInfraction()">Chiudi</button>
+                        </div>
+                        
+                        <table class="iz-data-table" id="iz-table-infraction">
+                            </table>
+                        
+                        <button class="iz-btn-action" onclick="alert('Verbale generato e inviato al sistema di notifica automatica.')"><i class="fa-solid fa-file-signature"></i> Emetti Verbale Elettronico</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-sinistri" class="iz-tab-content">
+                <div class="iz-card">
+                    <h3 class="iz-title">Accesso Anagrafica: Sinistri Stradali</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Accesso ai dati per la ricostruzione della dinamica e l'identificazione delle parti coinvolte.</p>
+                    
+                    <div class="iz-list-grid" id="iz-accidents-list">
+                        </div>
+
+                    <div id="iz-accident-details" class="iz-card iz-detail-panel hidden" style="border-left-color: #dc2626;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="font-size:16px; color:#dc2626;"><i class="fa-solid fa-truck-medical"></i> Fascicolo Sinistro #<span id="iz-acc-id-title"></span></h4>
+                            <button class="iz-btn-outline" style="border-color:#dc2626; color:#dc2626;" onclick="deselectAccident()">Chiudi Fascicolo</button>
+                        </div>
+                        
+                        <table class="iz-data-table" id="iz-table-accident">
+                            </table>
+                        
+                        <button class="iz-btn-action" style="background:#dc2626;" onclick="alert('Dati telemetrici (velocità, frenata, impatto) esportati in formato PDF ufficiale per le indagini.')"><i class="fa-solid fa-download"></i> Scarica Telemetria Crash Data</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // DATI SIMULATI PA (Area Taranto)
+        const mapCenter = [40.4715, 17.2450]; // Centro Taranto
+        
+        // 1. Tracciamento Spostamenti (Coordinate Taranto)
+        const tracciamenti = [
+            { 
+                id: 'IZ-01', model: 'Fiat 500e', plate: 'GA123AB', 
+                path: [
+                    [40.4755, 17.2480], // Via Di Palma
+                    [40.4735, 17.2450], // Piazza Maria Immacolata
+                    [40.4710, 17.2400], // Via D'Aquino
+                    [40.4682, 17.2345]  // Corso Due Mari
+                ]
+            },
+            { 
+                id: 'IZ-03', model: 'Vespa Elettrica', plate: 'XX12345', 
+                path: [
+                    [40.4650, 17.2550], // Viale Virgilio
+                    [40.4680, 17.2500], // Lungomare Vittorio Emanuele III
+                    [40.4715, 17.2450]  // Centro
+                ]
+            }
+        ];
+
+        // 2. Infrazioni (Dati Utente Sensibili - Indirizzi Taranto)
+        const infrazioniPA = [
+            { id: 'INF-2026-A1', type: 'Accesso ZTL Non Autorizzato', veh: 'IZ-01 (Fiat 500e)', plate: 'GA123AB', time: 'Oggi, 10:45', user: 'Mario Rossi', cf: 'RSSMRA80A01A662X', license: 'BA1234567V', address: 'Via D\'Aquino, 12' },
+            { id: 'INF-2026-B4', type: 'Divieto di Sosta', veh: 'IZ-05 (Xiaomi Pro 2)', plate: 'Monopattino', time: 'Ieri, 18:30', user: 'Laura Bianchi', cf: 'BNCLRA92C45H501Y', license: 'Documento ID: CA98765BO', address: 'Piazza Garibaldi' }
+        ];
+
+        // 3. Sinistri (Dati Utente e Assicurativi - Indirizzi Taranto)
+        const sinistriPA = [
+            { id: 'CRASH-088', severity: 'Lieve (Senza Feriti)', veh: 'IZ-02 (BMW i3)', plate: 'GB987YZ', time: 'Oggi, 08:15', user: 'Giuseppe Verdi', cf: 'VRDGPP75E12F205Z', license: 'U1A9988776', ins: 'Allianz - Polizza N. 9988776655', speed: '34 km/h al momento dell\'impatto' }
+        ];
+
+        let paMap = null;
+        let currentPolyline = null;
+        let currentMarker = null;
+
+        // Inizializzazione Mappa Tracciamento
+        function initPaMap() {
+            paMap = L.map('iz-pa-map').setView(mapCenter, 14);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: 'OSM' }).addTo(paMap);
+        }
+
+        // Cambio Tab Principale
+        function switchPaTab(tabId, btn) {
+            document.querySelectorAll('.iz-nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.querySelectorAll('.iz-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if(tabId === 'tab-tracciamento' && paMap) {
+                setTimeout(() => paMap.invalidateSize(), 100);
+            }
+        }
+
+        // --- GESTIONE TRACCIAMENTO ---
+        function renderTrackingList() {
+            let container = document.getElementById('iz-track-list');
+            tracciamenti.forEach((t, index) => {
+                let div = document.createElement('div');
+                div.className = 'iz-selectable-item';
+                div.innerHTML = `<h4 style="color:#1e3a8a;">${t.id} - ${t.model}</h4><p style="font-size:13px; color:#64748b;">Targa: ${t.plate}</p>`;
+                
+                div.onclick = function() {
+                    // Logica Seleziona/Deseleziona
+                    if (this.classList.contains('active')) {
+                        this.classList.remove('active');
+                        clearMapPath();
+                        return;
+                    }
+                    
+                    document.querySelectorAll('#iz-track-list .iz-selectable-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    drawVehiclePath(t.path);
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function drawVehiclePath(pathCoords) {
+            clearMapPath();
+            // Disegna il percorso rosso
+            currentPolyline = L.polyline(pathCoords, {color: '#dc2626', weight: 4, opacity: 0.8}).addTo(paMap);
+            // Marker posizione finale
+            const lastPos = pathCoords[pathCoords.length - 1];
+            currentMarker = L.marker(lastPos).addTo(paMap).bindPopup("Posizione Attuale Registrata").openPopup();
+            // Adatta la vista
+            paMap.fitBounds(currentPolyline.getBounds(), {padding: [50, 50]});
+        }
+
+        function clearMapPath() {
+            if(currentPolyline) paMap.removeLayer(currentPolyline);
+            if(currentMarker) paMap.removeLayer(currentMarker);
+        }
+
+        // --- GESTIONE INFRAZIONI ---
+        function renderInfractions() {
+            let container = document.getElementById('iz-infractions-list');
+            infrazioniPA.forEach((inf, index) => {
+                let div = document.createElement('div');
+                div.className = 'iz-selectable-item';
+                div.innerHTML = `
+                    <span class="iz-tag iz-tag-orange">Da Notificare</span>
+                    <h4 style="margin-bottom:4px;">${inf.type}</h4>
+                    <p style="font-size:13px; font-weight:700; color:#1e3a8a;">${inf.plate} - ${inf.time}</p>
+                `;
+                
+                div.onclick = function() {
+                    // Logica Seleziona/Deseleziona
+                    if (this.classList.contains('active')) {
+                        deselectInfraction();
+                        return;
+                    }
+
+                    document.querySelectorAll('#iz-infractions-list .iz-selectable-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    let panel = document.getElementById('iz-infraction-details');
+                    panel.classList.remove('hidden');
+                    
+                    document.getElementById('iz-table-infraction').innerHTML = `
+                        <tr><th>ID Violazione</th><td>${inf.id}</td></tr>
+                        <tr><th>Conducente Attivo</th><td><strong style="color:#dc2626;">${inf.user}</strong></td></tr>
+                        <tr><th>Codice Fiscale</th><td>${inf.cf}</td></tr>
+                        <tr><th>Estremi Patente / ID</th><td>${inf.license}</td></tr>
+                        <tr><th>Veicolo e Targa</th><td>${inf.veh} [${inf.plate}]</td></tr>
+                        <tr><th>Luogo Infrazione</th><td>${inf.address}</td></tr>
+                    `;
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function deselectInfraction() {
+            document.querySelectorAll('#iz-infractions-list .iz-selectable-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('iz-infraction-details').classList.add('hidden');
+        }
+
+        // --- GESTIONE SINISTRI ---
+        function renderAccidents() {
+            let container = document.getElementById('iz-accidents-list');
+            sinistriPA.forEach((acc, index) => {
+                let div = document.createElement('div');
+                div.className = 'iz-selectable-item';
+                div.innerHTML = `
+                    <span class="iz-tag iz-tag-red">Aperto</span>
+                    <h4 style="margin-bottom:4px;">Sinistro #${acc.id}</h4>
+                    <p style="font-size:13px; font-weight:700; color:#dc2626;">${acc.veh} - ${acc.time}</p>
+                `;
+                
+                div.onclick = function() {
+                    // Logica Seleziona/Deseleziona
+                    if (this.classList.contains('active')) {
+                        deselectAccident();
+                        return;
+                    }
+
+                    document.querySelectorAll('#iz-accidents-list .iz-selectable-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    let panel = document.getElementById('iz-accident-details');
+                    panel.classList.remove('hidden');
+                    document.getElementById('iz-acc-id-title').innerText = acc.id;
+                    
+                    document.getElementById('iz-table-accident').innerHTML = `
+                        <tr><th>Gravità Rilevata</th><td>${acc.severity}</td></tr>
+                        <tr><th>Conducente Coinvolto</th><td><strong style="color:#dc2626;">${acc.user}</strong></td></tr>
+                        <tr><th>Codice Fiscale</th><td>${acc.cf}</td></tr>
+                        <tr><th>Estremi Patente</th><td>${acc.license}</td></tr>
+                        <tr><th>Veicolo e Targa</th><td>${acc.veh} [${acc.plate}]</td></tr>
+                        <tr><th>Dati Assicurativi</th><td>${acc.ins}</td></tr>
+                        <tr><th>Telemetria Blackbox</th><td>${acc.speed}</td></tr>
+                    `;
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function deselectAccident() {
+            document.querySelectorAll('#iz-accidents-list .iz-selectable-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('iz-accident-details').classList.add('hidden');
+        }
+
+        // Inizializza tutto all'avvio
+        initPaMap();
+        renderTrackingList();
+        renderInfractions();
+        renderAccidents();
+
+    </script>
+</div>

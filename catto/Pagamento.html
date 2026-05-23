@@ -1,0 +1,416 @@
+<div id="izalith-payment-app" style="background-color: #F5F5F5; font-family: 'Segoe UI', sans-serif; color: #333333; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; max-width: 1100px; margin: auto;">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        #izalith-payment-app {
+            --primary-orange: #FF5722;
+            --dark-bg: #212121;
+            --light-grey: #F5F5F5;
+            --card-bg: #FFFFFF;
+            --text-dark: #333333;
+        }
+
+        #izalith-payment-app * { box-sizing: border-box; }
+        
+        /* HEADER */
+        .iz-header { background-color: var(--dark-bg); color: white; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; }
+        @media(max-width: 800px) { .iz-header { flex-direction: column; gap: 15px; } }
+        
+        .iz-logo-container { display: flex; align-items: center; gap: 12px; }
+        .iz-logo-text { font-size: 20px; font-weight: bold; color: white; text-transform: uppercase; margin: 0; }
+        .iz-logo-text span { color: var(--primary-orange); }
+        
+        .iz-nav { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .iz-nav a { color: #CCCCCC; text-decoration: none; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .iz-nav a:hover, .iz-nav a.active { color: var(--primary-orange); }
+
+        /* CONTENITORE PRINCIPALE */
+        .iz-app-container { padding: 30px 20px; width: 100%; }
+
+        .iz-pay-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+        @media(max-width: 800px) { .iz-pay-grid { grid-template-columns: 1fr; } }
+        
+        .iz-card { background: var(--card-bg); padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .iz-card h3 { margin-top: 0; font-size: 20px; margin-bottom: 20px; color: var(--text-dark); border-bottom: 2px solid #EEEEEE; padding-bottom: 10px; font-weight: 700; }
+        
+        /* Selezione Interattiva (Veicoli e Pagamenti) */
+        .iz-select-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .iz-select-card { padding: 15px; border: 2px solid #eee; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.2s; color: #666; background: #fff; position: relative; }
+        .iz-select-card i { font-size: 28px; margin-bottom: 8px; display: block; transition: 0.2s; color: var(--text-dark); }
+        .iz-select-card h4 { margin: 0 0 5px 0; font-size: 14px; color: var(--text-dark); font-weight: 700; }
+        .iz-select-card p { margin: 0; font-size: 13px; color: #666; font-weight: 600; }
+        
+        .iz-select-card:hover { border-color: #ccc; }
+        .iz-select-card.active { border-color: var(--primary-orange); background: #FFF0EC; }
+        .iz-select-card.active i, .iz-select-card.active h4, .iz-select-card.active p { color: var(--primary-orange); }
+
+        /* Toggles per Extra */
+        .iz-extra-row { display: flex; align-items: center; justify-content: space-between; padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; background: #fff; }
+        .iz-extra-row:hover { background: #FAF5F2; border-color: #ccc; }
+        .iz-extra-row.active { border-color: var(--primary-orange); background: #FFF0EC; }
+        
+        .iz-toggle-box { width: 44px; height: 24px; background: #ccc; border-radius: 12px; position: relative; margin-right: 15px; flex-shrink: 0; transition: 0.3s; }
+        .iz-toggle-box::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .iz-extra-row.active .iz-toggle-box { background: var(--primary-orange); }
+        .iz-extra-row.active .iz-toggle-box::after { transform: translateX(20px); }
+
+        .iz-extra-info { flex: 1; }
+        .iz-extra-info h4 { margin: 0 0 4px 0; font-size: 15px; color: var(--text-dark); }
+        .iz-extra-info p { margin: 0; font-size: 13px; color: #666; }
+        .iz-extra-price { font-weight: 700; font-size: 15px; color: var(--text-dark); }
+
+        /* Form di Pagamento Dinamici */
+        .iz-pay-form { display: none; padding: 20px; background: #fafafa; border: 1px solid #eee; border-radius: 10px; margin-top: 15px; }
+        .iz-pay-form.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .iz-pay-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; font-size: 14px; outline: none; transition: 0.2s; }
+        .iz-pay-input:focus { border-color: var(--primary-orange); }
+        .iz-form-row { display: flex; gap: 10px; }
+
+        /* Promo Code */
+        .iz-promo-flex { display: flex; gap: 10px; }
+        .iz-promo-input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; text-transform: uppercase; outline: none; transition: 0.2s; }
+        .iz-promo-input:focus { border-color: var(--primary-orange); }
+        .iz-btn-promo { padding: 12px 20px; background: var(--dark-bg); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .iz-btn-promo:hover { background: #333; }
+        #iz-promo-msg { font-size: 13px; margin-top: 8px; font-weight: 600; }
+
+        /* Tabella Riepilogo */
+        .iz-sum-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .iz-sum-table td { padding: 12px 0; border-bottom: 1px dashed #ddd; font-size: 15px; color: var(--text-dark); }
+        .iz-sum-table tr:last-child td { border-bottom: none; }
+        .iz-val { text-align: right; font-weight: 600; }
+        .iz-total-row td { font-size: 24px; font-weight: 800; padding-top: 20px; border-top: 2px solid var(--dark-bg); }
+        .iz-total-row .iz-val { color: var(--primary-orange); }
+
+        /* Azioni Finali */
+        .iz-btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .iz-btn-cancel { flex: 1; padding: 15px; background: #fff; border: 2px solid var(--dark-bg); color: var(--dark-bg); border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .iz-btn-cancel:hover { background: #EEEEEE; }
+        .iz-btn-confirm { flex: 2; padding: 15px; background: var(--primary-orange); border: 2px solid var(--primary-orange); color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 16px; }
+        .iz-btn-confirm:hover { background: #E64A19; border-color: #E64A19; }
+        
+        .hidden { display: none !important; }
+    </style>
+
+    <header class="iz-header">
+        <div class="iz-logo-container">
+            <svg width="45" height="45" viewBox="0 0 100 100">
+                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
+                <rect x="35" y="58" width="30" height="14" rx="4" fill="#212121" stroke="#FFFFFF" stroke-width="2"/>
+                <path d="M25 55 L25 70 M22 70 L28 70" stroke="#FFFFFF" stroke-width="2"/><circle cx="25" cy="72" r="2" fill="#FFFFFF"/>
+                <path d="M75 55 L75 70 M72 70 L78 70" stroke="#FFFFFF" stroke-width="2"/><circle cx="75" cy="72" r="2" fill="#FFFFFF"/>
+            </svg>
+            <div class="iz-logo-text">PROJECT <span>IZALITH</span></div>
+        </div>
+        <nav class="iz-nav">
+            <a href="#">Area Utente</a>
+            <a href="#">Esplora Veicoli</a>
+            <a href="#">Viaggio & Dashboard</a>
+            <a href="#">Supporto</a>
+            <a href="#" class="active">Checkout & Pagamento</a>
+        </nav>
+    </header>
+
+    <div class="iz-app-container">
+        <div class="iz-pay-grid">
+            
+            <div class="iz-main">
+                
+                <div class="iz-card">
+                    <h3>Seleziona il Veicolo</h3>
+                    <div class="iz-select-grid">
+                        <div class="iz-select-card" id="veh-sedan" onclick="toggleVehicle('sedan', 30.00)">
+                            <i class="fa-solid fa-car"></i>
+                            <h4>Izalith Sedan Car</h4>
+                            <p>€ 30,00</p>
+                        </div>
+                        <div class="iz-select-card" id="veh-scooter" onclick="toggleVehicle('scooter', 20.00)">
+                            <i class="fa-solid fa-motorcycle"></i>
+                            <h4>Scooter EV E-1</h4>
+                            <p>€ 20,00</p>
+                        </div>
+                        <div class="iz-select-card" id="veh-kick" onclick="toggleVehicle('kick', 12.00)">
+                            <i class="fa-solid fa-kick-scooter"></i>
+                            <h4>Monopattino Kick</h4>
+                            <p>€ 12,00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="iz-card">
+                    <h3>Servizi Extra</h3>
+                    <div class="iz-extra-row" id="ext-kasko" onclick="toggleExtra('kasko', 4.00)">
+                        <div class="iz-toggle-box"></div>
+                        <div class="iz-extra-info">
+                            <h4>Assicurazione Kasko</h4><p>Annullamento franchigia in caso di sinistro.</p>
+                        </div>
+                        <div class="iz-extra-price">+ € 4,00</div>
+                    </div>
+                    
+                    <div class="iz-extra-row" id="ext-kit" onclick="toggleExtra('kit', 2.50)">
+                        <div class="iz-toggle-box"></div>
+                        <div class="iz-extra-info">
+                            <h4>Kit Igiene Monouso</h4><p>Set di sanificazione certificata a bordo.</p>
+                        </div>
+                        <div class="iz-extra-price">+ € 2,50</div>
+                    </div>
+                </div>
+
+                <div class="iz-card">
+                    <h3>Codice Promozionale</h3>
+                    <div class="iz-promo-flex">
+                        <input type="text" id="iz-promo-code" class="iz-promo-input" placeholder="Es: IZALITH10">
+                        <button class="iz-btn-promo" onclick="applyPromo()">Applica / Rimuovi</button>
+                    </div>
+                    <div id="iz-promo-msg"></div>
+                </div>
+
+                <div class="iz-card">
+                    <h3>Metodo di Pagamento</h3>
+                    
+                    <div class="iz-select-grid">
+                        <div class="iz-select-card" id="pay-cc" onclick="setPayment('cc')">
+                            <i class="fa-regular fa-credit-card"></i>
+                            <h4>Carta</h4>
+                        </div>
+                        <div class="iz-select-card" id="pay-pp" onclick="setPayment('pp')">
+                            <i class="fa-brands fa-paypal"></i>
+                            <h4>PayPal</h4>
+                        </div>
+                        <div class="iz-select-card" id="pay-gp" onclick="setPayment('gp')">
+                            <i class="fa-brands fa-google-pay"></i>
+                            <h4>Google Pay</h4>
+                        </div>
+                        <div class="iz-select-card" id="pay-ap" onclick="setPayment('ap')">
+                            <i class="fa-brands fa-apple-pay"></i>
+                            <h4>Apple Pay</h4>
+                        </div>
+                    </div>
+
+                    <div id="form-cc" class="iz-pay-form">
+                        <input type="text" class="iz-pay-input" placeholder="Nome e Cognome Titolare">
+                        <input type="text" class="iz-pay-input" placeholder="Numero della Carta (es. 4000 1234 5678 9010)">
+                        <div class="iz-form-row">
+                            <input type="text" class="iz-pay-input" placeholder="Scadenza (MM/AA)">
+                            <input type="text" class="iz-pay-input" placeholder="CVV (3 cifre)">
+                        </div>
+                    </div>
+
+                    <div id="form-pp" class="iz-pay-form">
+                        <input type="email" class="iz-pay-input" placeholder="Indirizzo Email associato a PayPal">
+                        <p style="font-size:13px; color:#666; margin-top:5px;"><i class="fa-solid fa-circle-info"></i> Al momento della conferma verrai reindirizzato al login di PayPal per autorizzare la transazione in sicurezza.</p>
+                    </div>
+
+                    <div id="form-gp" class="iz-pay-form" style="text-align:center;">
+                        <p style="font-size:14px; margin-bottom:15px; color:var(--text-dark);">Paga velocemente usando le carte salvate nel tuo Google Wallet.</p>
+                        <button class="iz-btn-cancel" style="width:100%; border-radius:25px;"><i class="fa-brands fa-google"></i> Paga con Google Pay</button>
+                    </div>
+
+                    <div id="form-ap" class="iz-pay-form" style="text-align:center;">
+                        <p style="font-size:14px; margin-bottom:15px; color:var(--text-dark);">Usa il tuo Apple ID per un pagamento rapido e sicuro tramite Face ID / Touch ID.</p>
+                        <button class="iz-btn-confirm" style="width:100%; border-radius:25px; background:var(--dark-bg); border-color:var(--dark-bg);"><i class="fa-brands fa-apple"></i> Paga con Apple Pay</button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="iz-sidebar">
+                <div class="iz-card" style="position: sticky; top: 20px;">
+                    <h3>Checkout</h3>
+                    <table class="iz-sum-table">
+                        <tr>
+                            <td>Tariffa Base Veicolo</td>
+                            <td class="iz-val" id="sum-base">€ 0,00</td>
+                        </tr>
+                        <tr id="row-kasko" class="hidden">
+                            <td>Assicurazione Kasko</td><td class="iz-val">€ 4,00</td>
+                        </tr>
+                        <tr id="row-kit" class="hidden">
+                            <td>Kit Igiene</td><td class="iz-val">€ 2,50</td>
+                        </tr>
+                        <tr id="row-discount" class="hidden" style="color: #d32f2f;">
+                            <td>Sconto Promo</td><td class="iz-val" id="sum-discount">- € 0,00</td>
+                        </tr>
+                        <tr class="iz-total-row">
+                            <td>Totale</td>
+                            <td class="iz-val" id="sum-total">€ 0,00</td>
+                        </tr>
+                    </table>
+
+                    <div class="iz-btn-group">
+                        <button class="iz-btn-cancel" onclick="resetForm()">Svuota</button>
+                        <button class="iz-btn-confirm" onclick="submitPayment()">Paga Ora</button>
+                    </div>
+                    
+                    <p style="text-align:center; font-size:12px; color:#999; margin-top:15px;">
+                        <i class="fa-solid fa-lock"></i> Pagamento Sicuro SSL 256-bit
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Stato del Carrello
+        let cart = {
+            vehicleId: null,
+            basePrice: 0.00,
+            extras: { kasko: false, kit: false },
+            prices: { kasko: 4.00, kit: 2.50 },
+            discountPercent: 0,
+            paymentMethod: null
+        };
+
+        // Seleziona / Deseleziona Veicolo
+        function toggleVehicle(id, price) {
+            if (cart.vehicleId === id) {
+                // Deseleziona se già cliccato
+                cart.vehicleId = null;
+                cart.basePrice = 0.00;
+                document.getElementById('veh-' + id).classList.remove('active');
+            } else {
+                // Seleziona nuovo veicolo e deseleziona i precedenti
+                document.querySelectorAll('[id^="veh-"]').forEach(el => el.classList.remove('active'));
+                cart.vehicleId = id;
+                cart.basePrice = price;
+                document.getElementById('veh-' + id).classList.add('active');
+            }
+            updateCart();
+        }
+
+        // Seleziona / Deseleziona Extra
+        function toggleExtra(id, price) {
+            cart.extras[id] = !cart.extras[id];
+            
+            let rowEl = document.getElementById('ext-' + id);
+            let sumRow = document.getElementById('row-' + id);
+            
+            if(cart.extras[id]) {
+                rowEl.classList.add('active');
+                sumRow.classList.remove('hidden');
+            } else {
+                rowEl.classList.remove('active');
+                sumRow.classList.add('hidden');
+            }
+            updateCart();
+        }
+
+        // Applica o Rimuovi Codice Promozionale
+        function applyPromo() {
+            let codeInput = document.getElementById('iz-promo-code');
+            let code = codeInput.value.trim().toUpperCase();
+            let msgBox = document.getElementById('iz-promo-msg');
+            let discountRow = document.getElementById('row-discount');
+
+            if (cart.discountPercent > 0 && code === '') {
+                // Rimuove la promo se il campo è vuoto e clicca applica
+                cart.discountPercent = 0;
+                msgBox.innerText = "Codice rimosso.";
+                msgBox.style.color = "#666";
+                discountRow.classList.add('hidden');
+            } else if (code === 'IZALITH10') {
+                cart.discountPercent = 0.10; // 10% Sconto
+                msgBox.innerText = "Codice applicato: Sconto del 10%";
+                msgBox.style.color = "#4CAF50"; // Verde
+                discountRow.classList.remove('hidden');
+            } else if (code !== '') {
+                cart.discountPercent = 0;
+                msgBox.innerText = "Codice non valido o scaduto.";
+                msgBox.style.color = "#F44336"; // Rosso
+                discountRow.classList.add('hidden');
+            }
+            updateCart();
+        }
+
+        // Seleziona / Deseleziona Metodo Pagamento
+        function setPayment(method) {
+            if (cart.paymentMethod === method) {
+                // Deseleziona
+                cart.paymentMethod = null;
+                document.getElementById('pay-' + method).classList.remove('active');
+                document.getElementById('form-' + method).classList.remove('active');
+            } else {
+                // Rimuovi la classe active da tutti i bottoni e i form
+                document.querySelectorAll('[id^="pay-"]').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.iz-pay-form').forEach(el => el.classList.remove('active'));
+                
+                // Aggiungi la classe active a quello selezionato
+                cart.paymentMethod = method;
+                document.getElementById('pay-' + method).classList.add('active');
+                document.getElementById('form-' + method).classList.add('active');
+            }
+        }
+
+        // Calcolo e Aggiornamento UI
+        function updateCart() {
+            let subtotal = cart.basePrice;
+            
+            if(cart.extras.kasko) subtotal += cart.prices.kasko;
+            if(cart.extras.kit) subtotal += cart.prices.kit;
+
+            let discountValue = subtotal * cart.discountPercent;
+            let finalTotal = subtotal - discountValue;
+
+            document.getElementById('sum-base').innerText = '€ ' + cart.basePrice.toFixed(2).replace('.', ',');
+            
+            if(cart.discountPercent > 0) {
+                document.getElementById('sum-discount').innerText = '- € ' + discountValue.toFixed(2).replace('.', ',');
+            }
+            
+            document.getElementById('sum-total').innerText = '€ ' + finalTotal.toFixed(2).replace('.', ',');
+        }
+
+        // Annulla / Resetta
+        function resetForm() {
+            // Reset Veicoli
+            document.querySelectorAll('[id^="veh-"]').forEach(el => el.classList.remove('active'));
+            cart.vehicleId = null;
+            cart.basePrice = 0.00;
+            
+            // Reset Extras
+            ['kasko', 'kit'].forEach(id => {
+                if(cart.extras[id]) toggleExtra(id, cart.prices[id]);
+            });
+
+            // Reset Promo
+            document.getElementById('iz-promo-code').value = '';
+            cart.discountPercent = 0;
+            applyPromo();
+
+            // Reset Input Fields
+            document.querySelectorAll('.iz-pay-input').forEach(input => input.value = '');
+
+            // Reset Payment Method
+            if (cart.paymentMethod) {
+                setPayment(cart.paymentMethod); // Lo deseleziona
+            }
+            
+            updateCart();
+            alert("Operazione annullata. Il carrello è stato svuotato.");
+        }
+
+        // Conferma Transazione
+        function submitPayment() {
+            if (!cart.vehicleId) {
+                alert("Per favore, seleziona un veicolo prima di procedere al pagamento.");
+                return;
+            }
+            if (!cart.paymentMethod) {
+                alert("Per favore, seleziona un metodo di pagamento.");
+                return;
+            }
+            
+            let methodNames = { cc: 'Carta', pp: 'PayPal', gp: 'Google Pay', ap: 'Apple Pay' };
+            alert(`Transazione inviata con successo!\nVeicolo: ${document.querySelector('#veh-' + cart.vehicleId + ' h4').innerText}\nMetodo selezionato: ${methodNames[cart.paymentMethod]}\nImporto addebitato: ${document.getElementById('sum-total').innerText}\n\nGrazie per la tua prenotazione su Izalith.`);
+        }
+
+        // Init
+        updateCart();
+    </script>
+</div>
