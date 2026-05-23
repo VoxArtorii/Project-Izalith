@@ -13,15 +13,12 @@
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { color: var(--primary-orange); font-weight: bold; font-size: 18px; }
         
-        /* Stile User & Logout */
         .user-area { display: flex; align-items: center; gap: 15px; }
         .user-icon { width: 32px; height: 32px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; }
         .btn-logout { background: var(--primary-orange); border: none; color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .btn-logout:hover { opacity: 0.9; }
-
+        
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
         .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
-        
         .sidebar-fleet { background: var(--surface-card); padding: 20px; overflow-y: auto; border-right: 1px solid var(--border-color); }
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         
@@ -30,7 +27,7 @@
         .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
         
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 14px; text-align: left; }
         th { background: #0A0A0A; color: var(--text-muted); text-transform: uppercase; font-size: 12px; }
     </style>
 </head>
@@ -64,40 +61,45 @@
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20] });
 
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
-        async function caricaLogistica() {
-            const { data: sessionData } = await supabaseClient.auth.getSession();
-            if (sessionData.session) document.getElementById('user-email').innerText = sessionData.session.user.email;
+        async function caricaDati() {
+            const { data: session } = await supabaseClient.auth.getSession();
+            if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
 
+            // Carica Veicoli
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato della Flotta</strong><br><br>";
-            
             veicoli?.forEach(v => {
                 lista.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%</div>`;
-                if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
-                }
+                if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
             });
 
-            const { data: ticket } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
+            // Carica Segnalazioni (senza filtri restrittivi per vedere se appaiono)
+            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
             const corpo = document.getElementById("corpo-tabella-operatore");
-            corpo.innerHTML = ticket?.map(t => `
-                <tr>
-                    <td>${t.area}</td>
-                    <td>${t.categoria}</td>
-                    <td>${t.descrizione}</td>
-                    <td>${new Date(t.created_at).toLocaleDateString()}</td>
-                </tr>`).join('') || "<tr><td colspan='4'>Nessun ticket.</td></tr>";
+            
+            if (error) {
+                corpo.innerHTML = `<tr><td colspan='4'>Errore: ${error.message}</td></tr>`;
+            } else if (!ticket || ticket.length === 0) {
+                corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione trovata.</td></tr>";
+            } else {
+                corpo.innerHTML = ticket.map(t => `
+                    <tr>
+                        <td>${t.area}</td>
+                        <td>${t.categoria}</td>
+                        <td>${t.descrizione}</td>
+                        <td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/D'}</td>
+                    </tr>`).join('');
+            }
         }
 
         window.onload = () => {
             setTimeout(() => { map.invalidateSize(); }, 500);
-            caricaLogistica();
+            caricaDati();
         };
     </script>
 </body>
