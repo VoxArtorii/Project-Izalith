@@ -74,3 +74,149 @@
                 <div class="section-title">Stato Flotta Urbana</div>
                 <p style="color: var(--text-muted); font-size: 12px;">Mezzi attualmente dislocati a Bari [BA-01]:</p>
                 <div id="lista-veicoli-operatore">
+                    </div>
+            </div>
+            
+            <div class="map-wrapper">
+                <iframe class="map-iframe" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48074.88727038753!2d16.835565345719327!3d41.11714264627239!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1347e8f533a1e943%3A0x307d9e262c8e310!2sBari%20BA!5e0!3m2!1sit!2sit!4v1710000000000!5m2!1sit!2sit" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+        
+        <div class="bottom-section">
+            <div class="table-header-row">
+                <div>
+                    <span class="section-title">Anomalie Hardware & Manutenzione</span>
+                    <span style="color: var(--text-muted); font-size: 13px; margin-left: 10px;">Solo segnalazioni di tipo tecnico filtrate per la zona di Bari.</span>
+                </div>
+                <button class="btn-refresh" onclick="sincronizzaConsoleOperatore()">🔄 Sincronizza Cloud</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Area Urbana</th>
+                            <th>Categoria</th>
+                            <th>Dettaglio Segnalazione</th>
+                            <th>Data Ricezione</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabella-operatore">
+                        </tbody>
+                </table>
+                <div id="messaggio-vuoto" class="no-data" style="display: none;">
+                    Nessun guasto tecnico pendente nel database per Bari [BA-01].
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+
+        // Flotta Mock di backup (verrà sostituita quando popoleremo la tabella dei veicoli su Supabase)
+        const flottaMock = [
+            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 },
+            { codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 22 }, // Batteria scarica -> Richiede manutenzione
+            { codice: "Pattino-X1", tipo: "Monopattino", nome: "Izalith Speed", batteria: 45 }
+        ];
+
+        window.onload = function() {
+            sincronizzaConsoleOperatore();
+        };
+
+        function sincronizzaConsoleOperatore() {
+            scaricaFlottaUrbana();
+            scaricaSegnalazioniTecniche();
+        }
+
+        // 1. CARICAMENTO DEI MEZZI NELLA SIDEBAR
+        async function scaricaFlottaUrbana() {
+            const listaDiv = document.getElementById("lista-veicoli-operatore");
+            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Interrogazione telemetria...</p>';
+
+            try {
+                // Interroga la tabella dei veicoli filtrando per la zona di Bari
+                const { data: veicoliCloud, error } = await supabaseClient
+                    .from('veicoli')
+                    .select('*')
+                    .eq('area', 'Bari [BA-01]');
+
+                let mezzi = (!error && veicoliCloud && veicoliCloud.length > 0) ? veicoliCloud : flottaMock;
+                
+                listaDiv.innerHTML = "";
+                mezzi.forEach(mezzo => {
+                    let icona = "🛴";
+                    if(mezzo.tipo === "Auto") icona = "🚗";
+                    if(mezzo.tipo === "Scooter") icona = "🛵";
+
+                    let coloreBatteria = mezzo.batteria < 30 ? '#f44336' : '#4CAF50';
+
+                    let div = document.createElement('div');
+                    div.className = "vehicle-box";
+                    div.innerHTML = `
+                        <div class="vehicle-meta">
+                            <strong>${icona} ${mezzo.nome || mezzo.codice}</strong>
+                            <span class="battery-level" style="color: ${coloreBatteria}">${mezzo.batteria}%</span>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 12px;">ID Hardware: ${mezzo.codice}</p>
+                    `;
+                    listaDiv.appendChild(div);
+                });
+            } catch (e) {
+                listaDiv.innerHTML = '<p class="no-data">Errore caricamento flotta.</p>';
+            }
+        }
+
+        // 2. CARICAMENTO DELLE SEGNALAZIONI TECNICHE NELLA TABELLA IN BASSO
+        async function scaricaSegnalazioniTecniche() {
+            const corpoTabella = document.getElementById("corpo-tabella-operatore");
+            const messaggioVuoto = document.getElementById("messaggio-vuoto");
+            
+            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Verifica segnalazioni hardware...</td></tr>';
+            messaggioVuoto.style.display = "none";
+
+            try {
+                const { data: ticketTecnici, error } = await supabaseClient
+                    .from('segnalazioni')
+                    .select('*')
+                    .eq('area', 'Bari [BA-01]')
+                    .eq('categoria', 'Tecnica')
+                    .order('id', { ascending: false });
+
+                if (error) {
+                    corpoTabella.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore Cloud: ${error.message}</td></tr>`;
+                    return;
+                }
+
+                if (!ticketTecnici || ticketTecnici.length === 0) {
+                    corpoTabella.innerHTML = "";
+                    messaggioVuoto.style.display = "block";
+                    return;
+                }
+
+                corpoTabella.innerHTML = "";
+                ticketTecnici.forEach(ticket => {
+                    let tr = document.createElement('tr');
+                    let dataFormattata = ticket.created_at ? new Date(ticket.created_at).toLocaleString('it-IT') : "N/D";
+
+                    tr.innerHTML = `
+                        <td><strong>${ticket.area}</strong></td>
+                        <td><span class="badge badge-tech">${ticket.categoria}</span></td>
+                        <td style="color: #E0E0E0; max-width: 500px; word-wrap: break-word;">${ticket.descrizione}</td>
+                        <td style="color: var(--text-muted); font-size: 13px;">${dataFormattata}</td>
+                    `;
+                    corpoTabella.appendChild(tr);
+                });
+
+            } catch (err) {
+                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Connessione interrotta.</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>
