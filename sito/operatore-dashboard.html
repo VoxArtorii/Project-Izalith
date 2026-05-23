@@ -49,7 +49,7 @@
         </div>
         <div class="bottom-section">
             <table>
-                <thead><tr><th>Area</th><th>Categoria</th><th>Descrizione</th><th>Data</th></tr></thead>
+                <thead><tr><th>Area (ID)</th><th>Categoria</th><th>Descrizione</th><th>Data</th></tr></thead>
                 <tbody id="corpo-tabella-operatore"></tbody>
             </table>
         </div>
@@ -69,7 +69,7 @@
             const { data: session } = await supabaseClient.auth.getSession();
             if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
 
-            // Carica Veicoli
+            // 1. Carica Veicoli
             const { data: veicoli } = await supabaseClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato della Flotta</strong><br><br>";
@@ -78,16 +78,20 @@
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
             });
 
-            // Carica Segnalazioni (senza filtri restrittivi per vedere se appaiono)
-            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*').eq('area', 'BA-01');
+            // 2. Carica Segnalazioni - Usa select('*') generico se il filtro FK fallisce
+            // Se ancora non vedi nulla, commenta la riga sotto e usa quella successiva
+            const { data: ticket, error } = await supabaseClient.from('segnalazioni').select('*');
+            
             const corpo = document.getElementById("corpo-tabella-operatore");
             
             if (error) {
                 corpo.innerHTML = `<tr><td colspan='4'>Errore: ${error.message}</td></tr>`;
             } else if (!ticket || ticket.length === 0) {
-                corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione trovata.</td></tr>";
+                corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione trovata nel DB.</td></tr>";
             } else {
-                corpo.innerHTML = ticket.map(t => `
+                // Filtriamo lato client per sicurezza se la FK crea problemi
+                const filtered = ticket.filter(t => t.area === 'BA-01');
+                corpo.innerHTML = filtered.map(t => `
                     <tr>
                         <td>${t.area}</td>
                         <td>${t.categoria}</td>
