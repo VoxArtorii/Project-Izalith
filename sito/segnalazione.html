@@ -91,10 +91,15 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
-        const SUPABASE_URL = "https://iqadvwrvmecpetuqpysn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        (function() {
+            const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+            const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+            
+            // Usiamo un nome univoco locale isolato per evitare conflitti globali
+            window.supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+        })();
 
         async function inviaTicket(e) { 
             e.preventDefault();
@@ -114,7 +119,7 @@
             btn.disabled = true;
 
             try {
-                const { error } = await supabase
+                const { error } = await window.supabaseClient
                     .from('segnalazioni')
                     .insert([
                         { area: areaUrbana, categoria: catProblema, descrizione: descProblema }
