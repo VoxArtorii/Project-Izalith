@@ -10,14 +10,16 @@
         /* Navbar */
         .navbar { background: #000; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FF5722; }
         .title { color: #FF5722; font-weight: bold; font-size: 1.1em; }
-        
-        /* Bottone Logout identico alla pagina PA */
         .btn-logout { background-color: #FF5722; color: white; border: none; padding: 6px 20px; cursor: pointer; font-weight: bold; border-radius: 2px; }
         .btn-logout:hover { background-color: #e64a19; }
         
         /* Layout Principale */
         .main-container { display: grid; grid-template-columns: 300px 1fr; flex-grow: 1; overflow: hidden; }
         .sidebar { padding: 20px; background: #1a1a1a; overflow-y: auto; }
+        
+        /* BOX VEICOLI - Stile PA */
+        .vehicle-item { background: #222; border: 1px solid #333; padding: 12px; margin-bottom: 10px; border-radius: 4px; font-size: 0.95em; }
+        
         .map-container { position: relative; }
         #map { height: 100%; width: 100%; filter: grayscale(1) invert(1) hue-rotate(180deg); }
         
@@ -26,7 +28,7 @@
         table { width: 100%; border-collapse: collapse; color: #ccc; }
         th { text-align: left; padding: 10px; border-bottom: 1px solid #444; color: #888; text-transform: uppercase; font-size: 12px; }
         td { padding: 10px; border-bottom: 1px solid #333; }
-        h3 { color: #fff; margin-top: 0; }
+        h3 { color: #fff; margin-top: 0; font-size: 1em; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -61,14 +63,13 @@
         async function logout() { await client.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function init() {
-            // Inizializzazione Mappa
             const map = L.map('map').setView([41.1171, 16.8719], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            // Carica Veicoli
+            // Carica Veicoli con stile Box separati
             const { data: veicoli } = await client.from('veicoli').select('*');
             document.getElementById('veicoli-content').innerHTML = veicoli?.map(v => 
-                `<div style="margin-bottom:15px">${v.nome} (${v.batteria}%)</div>`).join('') || "Nessun veicolo";
+                `<div class="vehicle-item">${v.nome} (${v.batteria}%)</div>`).join('') || "Nessun veicolo";
 
             // Carica Segnalazioni TECNICHE
             const { data: ticket } = await client.from('segnalazioni').select('*');
