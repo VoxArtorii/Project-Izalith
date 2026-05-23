@@ -19,10 +19,8 @@
         .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
         .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
         
-        /* Layout Principale Diviso */
         .workspace { flex: 1; display: grid; grid-template-rows: 1fr 300px; height: calc(100vh - 65px); }
         
-        /* Sezione Superiore: Flotta + Mappa */
         .top-section { display: grid; grid-template-columns: 340px 1fr; height: 100%; border-bottom: 2px solid var(--border-color); overflow: hidden; }
         
         .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
@@ -36,7 +34,6 @@
         .map-wrapper { width: 100%; height: 100%; background: #222; }
         .map-iframe { width: 100%; height: 100%; border: none; filter: grayscale(1) invert(1) contrast(1.2); }
         
-        /* Sezione Inferiore: Tabella Ticket Ambientali */
         .bottom-section { background: var(--surface-card); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .table-header-row { display: flex; justify-content: space-between; align-items: center; }
         
@@ -68,13 +65,11 @@
     </nav>
 
     <div class="workspace">
-        
         <div class="top-section">
             <div class="sidebar-fleet">
                 <div class="section-title">Dislocazione Flotta Micro-Mobilità</div>
                 <p style="color: var(--text-muted); font-size: 12px;">Mezzi presenti nell'area urbana BA-01:</p>
-                <div id="lista-veicoli-pa">
-                    </div>
+                <div id="lista-veicoli-pa"></div>
             </div>
             
             <div class="map-wrapper">
@@ -101,15 +96,13 @@
                             <th>Data Segnalazione</th>
                         </tr>
                     </thead>
-                    <tbody id="corpo-tabella-pa">
-                        </tbody>
+                    <tbody id="corpo-tabella-pa"></tbody>
                 </table>
                 <div id="messaggio-vuoto" class="no-data" style="display: none;">
                     Nessuna segnalazione di viabilità o ambientale registrata per quest'area.
                 </div>
             </div>
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -118,15 +111,11 @@
         const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
         const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
 
-        // Flotta Mock di backup
         const flottaMock = [
-            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 },
-            { codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 22 }
+            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 }
         ];
 
-        window.onload = function() {
-            sincronizzaPortalePA();
-        };
+        window.onload = function() { sincronizzaPortalePA(); };
 
         function sincronizzaPortalePA() {
             scaricaFlottaUrbanaPA();
@@ -135,22 +124,20 @@
 
         async function scaricaFlottaUrbanaPA() {
             const listaDiv = document.getElementById("lista-veicoli-pa");
-            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Sincronizzazione telemetria flotta...</p>';
+            listaDiv.innerHTML = '<p class="no-data" style="font-size:12px;">Sincronizzazione telemetria...</p>';
 
             try {
+                // MODIFICA: area_competenza
                 const { data: veicoliCloud, error } = await supabaseClient
                     .from('veicoli')
                     .select('*')
-                    .eq('area', 'BA-01');
+                    .eq('area_competenza', 'BA-01');
 
                 let mezzi = (!error && veicoliCloud && veicoliCloud.length > 0) ? veicoliCloud : flottaMock;
                 
                 listaDiv.innerHTML = "";
                 mezzi.forEach(mezzo => {
-                    let icona = "🛴";
-                    if(mezzo.tipo === "Auto") icona = "🚗";
-                    if(mezzo.tipo === "Scooter") icona = "🛵";
-
+                    let icona = mezzo.tipo === "Auto" ? "🚗" : (mezzo.tipo === "Scooter" ? "🛵" : "🛴");
                     let coloreBatteria = mezzo.batteria < 30 ? '#f44336' : '#4CAF50';
 
                     let div = document.createElement('div');
@@ -173,23 +160,19 @@
             const corpoTabella = document.getElementById("corpo-tabella-pa");
             const messaggioVuoto = document.getElementById("messaggio-vuoto");
             
-            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Aggiornamento registro comunale...</td></tr>';
+            corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Aggiornamento registro...</td></tr>';
             messaggioVuoto.style.display = "none";
 
             try {
+                // MODIFICA: area_competenza
                 const { data: ticketAmbientali, error } = await supabaseClient
                     .from('segnalazioni')
                     .select('*')
-                    .eq('area', 'BA-01')
+                    .eq('area_competenza', 'BA-01')
                     .eq('categoria', 'Ambientale / Viabilità')
                     .order('id', { ascending: false });
 
-                if (error) {
-                    corpoTabella.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore di sincronizzazione: ${error.message}</td></tr>`;
-                    return;
-                }
-
-                if (!ticketAmbientali || ticketAmbientali.length === 0) {
+                if (error || !ticketAmbientali || ticketAmbientali.length === 0) {
                     corpoTabella.innerHTML = "";
                     messaggioVuoto.style.display = "block";
                     return;
@@ -198,19 +181,17 @@
                 corpoTabella.innerHTML = "";
                 ticketAmbientali.forEach(ticket => {
                     let tr = document.createElement('tr');
-                    let dataFormattata = ticket.created_at ? new Date(ticket.created_at).toLocaleString('it-IT') : "N/D";
-
+                    // MODIFICA: accesso a area_competenza
                     tr.innerHTML = `
-                        <td><strong>${ticket.area}</strong></td>
+                        <td><strong>${ticket.area_competenza}</strong></td>
                         <td><span class="badge badge-env">${ticket.categoria}</span></td>
                         <td style="color: #E0E0E0; max-width: 500px; word-wrap: break-word;">${ticket.descrizione}</td>
-                        <td style="color: var(--text-muted); font-size: 13px;">${dataFormattata}</td>
+                        <td style="color: var(--text-muted); font-size: 13px;">${ticket.created_at ? new Date(ticket.created_at).toLocaleString('it-IT') : "N/D"}</td>
                     `;
                     corpoTabella.appendChild(tr);
                 });
-
             } catch (err) {
-                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Impossibile raggiungere il server.</td></tr>';
+                corpoTabella.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore di sistema.</td></tr>';
             }
         }
     </script>
