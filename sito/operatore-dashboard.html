@@ -63,11 +63,7 @@
             const map = L.map('map').setView([41.1171, 16.8719], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            // 2. Email
-            const { data: session } = await dbClient.auth.getSession();
-            if (session?.session) document.getElementById('user-email').innerText = session.session.user.email;
-
-            // 3. Veicoli
+            // 2. Veicoli
             const { data: veicoli } = await dbClient.from('veicoli').select('*').eq('area', 'BA-01');
             const lista = document.getElementById("lista-veicoli-operatore");
             lista.innerHTML = "<strong>Stato Flotta</strong><br><br>";
@@ -76,34 +72,30 @@
                 if(v.latitudine) L.marker([v.latitudine, v.longitudine]).addTo(map);
             });
 
-            // 4. Segnalazioni (Filtro esatto su "Tecnica")
+            // 3. Segnalazioni: FORZATURA TOTALE (Nessun filtro)
             try {
                 const { data: ticket, error } = await dbClient.from('segnalazioni').select('*');
                 const corpo = document.getElementById("corpo-tabella-operatore");
                 
-                if (error) throw error;
-
-                // Filtro basato su ciò che abbiamo visto in console
-                const filtrati = ticket.filter(t => t.categoria && t.categoria.trim() === "Tecnica");
-                
-                if (filtrati.length > 0) {
-                    corpo.innerHTML = filtrati.map(t => 
-                        `<tr>
-                            <td>${t.area}</td>
-                            <td>${t.categoria}</td>
-                            <td>${t.descrizione}</td>
-                            <td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : 'N/D'}</td>
-                        </tr>`
-                    ).join('');
+                if (error) {
+                    corpo.innerHTML = `<tr><td colspan="4">Errore DB: ${error.message}</td></tr>`;
+                } else if (ticket && ticket.length > 0) {
+                    let html = "";
+                    ticket.forEach(t => {
+                        html += `<tr>
+                            <td>${t.area || 'N/D'}</td>
+                            <td>${t.categoria || 'N/D'}</td>
+                            <td>${t.descrizione || 'N/D'}</td>
+                            <td>${t.created_at || 'N/D'}</td>
+                        </tr>`;
+                    });
+                    corpo.innerHTML = html;
                 } else {
-                    corpo.innerHTML = "<tr><td colspan='4'>Nessuna segnalazione 'Tecnica' trovata.</td></tr>";
+                    corpo.innerHTML = "<tr><td colspan='4'>Nessun dato trovato nel database.</td></tr>";
                 }
             } catch (err) {
-                console.error("ERRORE SEGNALAZIONI:", err);
+                console.error("ERRORE FATALE:", err);
             }
         }
 
-        window.onload = init;
-    </script>
-</body>
-</html>
+        window.onload
