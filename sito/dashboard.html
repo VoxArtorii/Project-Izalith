@@ -81,12 +81,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Inserisci qui le tue credenziali Supabase reali per collegare il cloud
-        const SUPABASE_URL = "INSERISCI_QUI_IL_TUO_PROJECT_URL";
-        const SUPABASE_KEY = "INSERISCI_QUI_LA_TUA_ANON_PUBLIC_KEY";
+        const SUPABASE_URL = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Le 3 vetture pronte hardcoded richieste, visibili immediatamente
         const veicoliMock = [
             { id: 1, codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94, area: "Bari [BA-01]" },
             { id: 2, codice: "Scoot-Z03", tipo: "Scooter", nome: "Vespa E-Volt", batteria: 82, area: "Bari [BA-01]" },
@@ -104,20 +102,15 @@
             listaDiv.innerHTML = '<p class="no-vehicles">Ricerca telemetria mezzi...</p>';
             let veicoliVisualizzabili = [];
 
-            // Tentativo di lettura da Supabase
             try {
-                if (SUPABASE_URL !== "INSERISCI_QUI_IL_TUO_PROJECT_URL") {
-                    let query = supabase.from('veicoli').select('*').eq('area', 'Bari [BA-01]');
-                    if (tipoSelezionato !== "Tutti") {
-                        query = query.eq('tipo', tipoSelezionato);
-                    }
-                    const { data: veicoliCloud, error } = await query;
-                    
-                    if (!error && veicoliCloud && veicoliCloud.length > 0) {
-                        veicoliVisualizzabili = veicoliCloud;
-                    } else {
-                        veicoliVisualizzabili = veicoliMock.filter(m => tipoSelezionato === "Tutti" || m.tipo === tipoSelezionato);
-                    }
+                let query = supabase.from('veicoli').select('*').eq('area', 'Bari [BA-01]');
+                if (tipoSelezionato !== "Tutti") {
+                    query = query.eq('tipo', tipoSelezionato);
+                }
+                const { data: veicoliCloud, error } = await query;
+                
+                if (!error && veicoliCloud && veicoliCloud.length > 0) {
+                    veicoliVisualizzabili = veicoliCloud;
                 } else {
                     veicoliVisualizzabili = veicoliMock.filter(m => tipoSelezionato === "Tutti" || m.tipo === tipoSelezionato);
                 }
@@ -125,7 +118,6 @@
                 veicoliVisualizzabili = veicoliMock.filter(m => tipoSelezionato === "Tutti" || m.tipo === tipoSelezionato);
             }
 
-            // Svuota e renderizza
             if (veicoliVisualizzabili.length === 0) {
                 listaDiv.innerHTML = `<p class="no-vehicles">Nessun ${tipoSelezionato.toLowerCase()} disponibile.</p>`;
                 return;
@@ -147,7 +139,6 @@
                         <span class="battery-level" style="color: ${mezzo.batteria < 30 ? '#f44336' : '#4CAF50'}">${mezzo.batteria}%</span>
                     </div>
                     <p style="color: var(--text-muted); font-size: 13px;">Codice: ${mezzo.codice}</p>
-                    
                     <button class="btn-rent" onclick="event.stopPropagation(); avviaNoleggioMock('${mezzo.codice}')">Noleggia Mezzo</button>
                 `;
                 listaDiv.appendChild(div);
