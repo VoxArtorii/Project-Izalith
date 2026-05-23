@@ -41,7 +41,7 @@
     <div class="content-container">
         <div class="card">
             <h3>Saldo Disponibile</h3>
-            <div class="balance-display" id="saldo-attuale">€ 0,00</div>
+            <div class="balance-display" id="saldo-attuale">Caricamento...</div>
             
             <label>Importo Ricarica (€)</label>
             <input type="number" id="amount" class="input-money" placeholder="Inserisci importo">
@@ -71,33 +71,63 @@
 
         async function init() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) window.location.href = "login-user.html";
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
             userId = user.id;
             aggiornaDati();
         }
 
         async function aggiornaDati() {
-            const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
-            document.getElementById('saldo-attuale').innerText = `€ ${utente.wallet_balance.toFixed(2)}`;
+            try {
+                // Carica Saldo
+                const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
+                if (utente) {
+                    document.getElementById('saldo-attuale').innerText = `€ ${utente.wallet_balance.toFixed(2)}`;
+                }
 
-            const { data: transazioni } = await supabase.from('storico_transazioni').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-            const tbody = document.getElementById('storico-body');
-            tbody.innerHTML = transazioni.map(t => `<tr><td>${new Date(t.created_at).toLocaleDateString()}</td><td>${t.descrizione}</td><td style="color:${t.importo > 0 ? '#4CAF50' : '#f44336'}">${t.importo > 0 ? '+' : ''}€ ${t.importo.toFixed(2)}</td></tr>`).join('');
+                // Carica Storico
+                const { data: transazioni } = await supabase.from('storico_transazioni')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false });
+                
+                const tbody = document.getElementById('storico-body');
+                tbody.innerHTML = transazioni.map(t => `
+                    <tr>
+                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                        <td>${t.descrizione}</td>
+                        <td style="color:${t.importo > 0 ? '#4CAF50' : '#f44336'}">${t.importo > 0 ? '+' : ''}€ ${t.importo.toFixed(2)}</td>
+                    </tr>`).join('');
+            } catch (err) {
+                console.error("Errore caricamento dati:", err);
+            }
         }
 
         async function processaRicarica() {
-            const importo = parseFloat(document.getElementById('amount').value);
+            const input = document.getElementById('amount');
+            const importo = parseFloat(input.value);
             const metodo = document.querySelector('input[name="metodo"]:checked').value;
             
             if (isNaN(importo) || importo <= 0) return alert("Inserisci un importo valido");
 
-            // Simulazione operazione gateway
-            const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
-            await supabase.from('utenti').update({ wallet_balance: utente.wallet_balance + importo }).eq('id', userId);
-            await supabase.from('storico_transazioni').insert([{ user_id: userId, importo: importo, descrizione: `Ricarica via ${metodo}` }]);
-            
-            alert(`Ricarica di €${importo.toFixed(2)} effettuata con ${metodo}.`);
-            aggiornaDati();
+            try {
+                const { data: utente } = await supabase.from('utenti').select('wallet_balance').eq('id', userId).single();
+                
+                await supabase.from('utenti').update({ wallet_balance: utente.wallet_balance + importo }).eq('id', userId);
+                await supabase.from('storico_transazioni').insert([{ 
+                    user_id: userId, 
+                    importo: importo, 
+                    descrizione: `Ricarica via ${metodo}` 
+                }]);
+                
+                alert(`Ricarica di €${importo.toFixed(2)} effettuata con successo.`);
+                input.value = "";
+                aggiornaDati();
+            } catch (err) {
+                alert("Errore durante la ricarica: " + err.message);
+            }
         }
 
         init();
