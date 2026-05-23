@@ -86,17 +86,18 @@
                             <div class="vehicle-header" onclick="toggleDetails('details-${index}')">
                                 ${v.nome} <span>▼</span>
                             </div>
+                            <div style="padding: 0 12px 10px 12px;">
+                                <button class="btn-logout" style="width: 100%; padding: 6px;" 
+                                        onclick="window.location.href='gestione-manutenzione.html?id=${v.id}'">
+                                    Gestisci Manutenzione
+                                </button>
+                            </div>
                             <div class="vehicle-details" id="details-${index}">
                                 <b>Tipo:</b> ${v.tipo || 'N/D'}<br>
                                 <b>Stato:</b> ${v.stato || 'Disponibile'}<br>
                                 <b>Batteria:</b> ${v.batteria}%<br>
                                 <b>Lat:</b> ${v.latitudine}<br>
-                                <b>Lon:</b> ${v.longitudine}<br>
-                                <br>
-                                <button class="btn-logout" style="width: 100%;" 
-                                        onclick="window.location.href='gestione-manutenzione.html?id=${v.id}'">
-                                    Gestisci Manutenzione
-                                </button>
+                                <b>Lon:</b> ${v.longitudine}
                             </div>
                         </div>`;
                 }).join('');
