@@ -13,151 +13,29 @@
             --text-muted: #A0A0A0;
             --border-color: #2C2C2C;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--dark-bg);
-            color: var(--text-light);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        /* Navbar di Navigazione */
-        .app-navbar {
-            background-color: #0A0A0A;
-            padding: 12px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 20px;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 15px;
-        }
-
-        .nav-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-weight: 500;
-            font-size: 15px;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .nav-btn:hover, .nav-btn.active {
-            color: var(--primary-orange);
-            background: rgba(255, 87, 34, 0.05);
-        }
-
-        /* Layout Principale */
-        .main-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px 20px;
-        }
-
-        .form-card {
-            background-color: var(--surface-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            width: 100%;
-            max-width: 550px;
-            padding: 35px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        }
-
-        .form-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .form-subtitle {
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 25px;
-        }
-
-        /* Elementi del Form */
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-light);
-        }
-
-        .form-control {
-            background-color: #121212;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: var(--text-light);
-            padding: 12px 14px;
-            font-size: 15px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-orange);
-        }
-
-        textarea.form-control {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        /* Pulsante di Invio */
-        .btn-submit {
-            background-color: var(--primary-orange);
-            color: #FFFFFF;
-            border: none;
-            border-radius: 6px;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-            transition: background-color 0.2s, opacity 0.2s;
-        }
-
-        .btn-submit:hover {
-            background-color: #E64A19;
-        }
-
-        .btn-submit:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+        .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
+        .nav-menu { display: flex; gap: 15px; }
+        .nav-btn { background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 15px; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+        .nav-btn:hover, .nav-btn.active { color: var(--primary-orange); background: rgba(255, 87, 34, 0.05); }
+        
+        .main-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px 20px; }
+        .form-card { background-color: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; width: 100%; max-width: 550px; padding: 35px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .form-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .form-subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 25px; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .form-group label { font-size: 14px; font-weight: 500; }
+        .form-control { background-color: #121212; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-light); padding: 12px 14px; font-size: 15px; outline: none; width: 100%; }
+        .form-control:focus { border-color: var(--primary-orange); }
+        textarea.form-control { resize: vertical; min-height: 120px; }
+        
+        .btn-submit { background-color: var(--primary-orange); color: #FFFFFF; border: none; border-radius: 6px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; transition: background-color 0.2s; }
+        .btn-submit:hover { background-color: #E64A19; }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -185,7 +63,6 @@
             <div class="form-subtitle">Comunica anomalie sui mezzi o problemi di viabilità sul territorio urbano.</div>
             
             <form onsubmit="return inviaTicket(event)">
-                
                 <div class="form-group">
                     <label for="citta-segnalazione">Area Urbana di Riferimento</label>
                     <select id="citta-segnalazione" class="form-control" required>
@@ -205,7 +82,7 @@
 
                 <div class="form-group">
                     <label for="desc">Dettaglio della Segnalazione</label>
-                    <textarea id="desc" class="form-control" placeholder="Descrivi il problema riscontrato per consentire l'intervento di Operatori o Pubblica Amministrazione..." required></textarea>
+                    <textarea id="desc" class="form-control" placeholder="Descrivi il problema riscontrato..." required></textarea>
                 </div>
 
                 <button type="submit" class="btn-submit">Invia Segnalazione</button>
@@ -215,3 +92,50 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        const SUPABASE_URL = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function inviaTicket(e) { 
+            e.preventDefault();
+            
+            let areaUrbana = document.getElementById('citta-segnalazione').value;
+            let catProblema = document.getElementById('cat').value;
+            let descProblema = document.getElementById('desc').value;
+            
+            if(!areaUrbana || !catProblema || !descProblema.trim()) {
+                alert("Compila tutti i campi richiesti.");
+                return false;
+            }
+
+            const btn = document.querySelector('.btn-submit');
+            const testoOriginale = btn.innerHTML;
+            btn.innerHTML = "Trasmissione al Cloud...";
+            btn.disabled = true;
+
+            try {
+                const { error } = await supabase
+                    .from('segnalazioni')
+                    .insert([
+                        { area: areaUrbana, categoria: catProblema, descrizione: descProblema }
+                    ]);
+
+                if (error) {
+                    console.error("Errore Supabase:", error);
+                    alert("Errore di scrittura nel database: " + error.message);
+                } else {
+                    alert("Perfetto! Segnalazione inviata con successo al Database Cloud di Izalith."); 
+                    window.location.replace('dashboard.html'); 
+                }
+            } catch (err) {
+                console.error("Errore di rete:", err);
+                alert("Errore di rete improvviso. Impossibile raggiungere il database.");
+            } finally {
+                btn.innerHTML = testoOriginale;
+                btn.disabled = false;
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>
