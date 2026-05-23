@@ -19,7 +19,7 @@
         .sidebar-fleet { background: var(--surface-card); padding: 20px; overflow-y: auto; }
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         
-        /* Stile Accordion (da Operatore) */
+        /* Stile Accordion */
         .vehicle-box { background: #222; border: 1px solid #333; margin-bottom: 10px; border-radius: 4px; overflow: hidden; }
         .vehicle-header { padding: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
         .vehicle-header:hover { background: #333; }
@@ -73,7 +73,6 @@
         async function logoutUser() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function caricaDatiAggiornati() {
-            // 1. Caricamento Veicoli con Join sui noleggi attivi
             const { data: veicoli } = await supabaseClient
                 .from('veicoli')
                 .select('*, noleggi(utente_id, utenti(nome, email))')
@@ -83,11 +82,9 @@
             lista.innerHTML = "";
             
             veicoli?.forEach((v, index) => {
-                // Gestione dati utente se in uso
                 const noleggio = v.noleggi?.find(n => v.stato === 'In uso');
                 const infoUtente = noleggio ? `<strong>Utente:</strong> ${noleggio.utenti?.nome || 'N/D'} (${noleggio.utenti?.email || 'N/D'})` : '<em>Veicolo libero</em>';
 
-                // Aggiunta alla lista sidebar
                 lista.innerHTML += `
                     <div class="vehicle-box">
                         <div class="vehicle-header" onclick="toggleDetails('details-${index}')">
@@ -95,22 +92,22 @@
                         </div>
                         <div class="vehicle-details" id="details-${index}">
                             <b>Stato:</b> ${v.stato}<br>
-                            ${infoUtente}
+                            ${infoUtente}<br>
+                            <b>Lat:</b> ${v.latitudine}<br>
+                            <b>Lon:</b> ${v.longitudine}
                         </div>
                     </div>`;
 
-                // Mappa
                 if(v.latitudine && v.longitudine) {
                     L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
                 }
             });
 
-            // 2. Caricamento Segnalazioni ESCLUSE quelle tecniche
             const { data: segn } = await supabaseClient
                 .from('segnalazioni')
                 .select('*')
                 .eq('area', 'BA-01')
-                .neq('categoria', 'Tecnica'); // <-- FILTRO APPLICATO
+                .neq('categoria', 'Tecnica');
 
             const tab = document.getElementById("tabella-criticità");
             tab.innerHTML = segn?.map(s => `<tr><td>${s.area}</td><td>${s.categoria}</td><td>${s.descrizione}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join('') || "<tr><td colspan='4'>Nessuna segnalazione rilevata.</td></tr>";
