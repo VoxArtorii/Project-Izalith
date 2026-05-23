@@ -68,6 +68,11 @@
 
         window.onload = async () => {
             setTimeout(() => map.invalidateSize(), 500);
+            
+            // Recupera email utente
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) document.getElementById("utente-loggato").innerText = user.email;
+            
             caricaVeicoliFlotta();
         };
 
@@ -85,10 +90,8 @@
             listaDiv.innerHTML = "";
 
             veicoli?.forEach(v => {
-                // Lista
-                listaDiv.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button></div>`;
+                listaDiv.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
                 
-                // Mappa
                 if(v.latitudine && v.longitudine) {
                     const m = L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
                     markers.push(m);
@@ -96,10 +99,30 @@
             });
         }
 
-        async function avviaNoleggio(codice) {
-            if(confirm(`Confermi noleggio ${codice}?`)) {
-                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codice);
+        async function avviaNoleggio(codiceMezzo) {
+            const COSTO = 2.50;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return alert("Errore di sessione.");
+
+            // 1. Verifica Saldo
+            const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
+            if (!utente || utente.wallet_balance < COSTO) return alert("Credito insufficiente per il noleggio!");
+
+            if (!confirm(`Confermi il noleggio di ${codiceMezzo}? Ti verranno scalati ${COSTO}€.`)) return;
+
+            // 2. Operazioni Database
+            try {
+                // A. Aggiorna Veicolo
+                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
+                // B. Scala Credito
+                await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
+                // C. Log Transazione
+                await supabaseClient.from("storico_transazioni").insert([{ user_id: user.id, codice_mezzo: codiceMezzo, importo: COSTO, descrizione: "Noleggio mezzo" }]);
+
+                alert("Noleggio avviato con successo!");
                 window.location.href = "noleggio-attivo.html";
+            } catch (err) {
+                alert("Errore durante il noleggio: " + err.message);
             }
         }
 
