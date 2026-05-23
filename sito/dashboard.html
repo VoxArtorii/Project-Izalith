@@ -3,148 +3,567 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Izalith - Mappa Veicoli</title>
+    <title>Izalith - Portale Pubblica Amministrazione</title>
+
     <style>
-        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
-        .nav-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; font-size: 20px; }
-        .nav-menu { display: flex; gap: 15px; }
-        .nav-btn { background: none; border: none; color: var(--text-muted); font-weight: 500; font-size: 15px; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
-        .nav-btn:hover, .nav-btn.active { color: var(--primary-orange); background: rgba(255,87,34,0.05); }
-        
-        .main-workspace { flex: 1; display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 65px); }
-        .sidebar-fleet { background: var(--surface-card); border: 1px solid var(--border-color); padding: 25px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
-        .fleet-title { font-size: 18px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        
-        .filter-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-        .filter-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-        .filter-select { background: #121212; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: white; font-size: 14px; width: 100%; outline: none; }
-        
-        .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .vehicle-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .battery-level { color: #4CAF50; font-weight: bold; font-size: 13px; }
-        
-        .map-wrapper { width: 100%; height: 100%; background: #222; }
-        .map-iframe { width: 100%; height: 100%; border: none; filter: grayscale(1) invert(1) contrast(1.2); }
-        .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; width: 100%; margin-top: 12px; }
-        .btn-rent:hover { background-color: #E64A19; }
-        .no-vehicles { color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 20px; }
+        :root {
+            --primary-orange: #ff5722;
+            --dark-bg: #121212;
+            --surface-card: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --border-color: #2C2C2C;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-navbar {
+            background-color: #0A0A0A;
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            height: 65px;
+            gap: 25px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 20px;
+            min-width: 0;
+        }
+
+        .nav-brand span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            flex-shrink: 0;
+        }
+
+        .nav-user {
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 14px;
+            padding-right: 18px;
+            border-right: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .nav-item {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            color: var(--primary-orange);
+        }
+
+        .logout {
+            color: #f44336;
+        }
+
+        .logout:hover {
+            color: #ff6b6b;
+        }
+
+        .workspace {
+            flex: 1;
+            display: grid;
+            grid-template-rows: 1fr 300px;
+            height: calc(100vh - 65px);
+        }
+
+        .top-section {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            height: 100%;
+            border-bottom: 2px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .sidebar-fleet {
+            background: var(--surface-card);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vehicle-box {
+            background: #121212;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+
+        .vehicle-box:hover {
+            border-color: var(--primary-orange);
+        }
+
+        .vehicle-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            gap: 10px;
+        }
+
+        .battery-level {
+            font-weight: bold;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .map-wrapper {
+            width: 100%;
+            height: 100%;
+            background: #222;
+        }
+
+        .map-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            filter: grayscale(1) invert(1) contrast(1.2);
+        }
+
+        .bottom-section {
+            background: var(--surface-card);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .table-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-refresh {
+            background: none;
+            border: 1px solid var(--primary-orange);
+            color: var(--primary-orange);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(255, 87, 34, 0.1);
+        }
+
+        .table-container {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            background: #121212;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #0A0A0A;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255,255,255,0.01);
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-env {
+            background-color: rgba(255, 87, 34, 0.15);
+            color: var(--primary-orange);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 1100px) {
+            .app-navbar {
+                height: auto;
+                min-height: 65px;
+                flex-wrap: wrap;
+            }
+
+            .nav-menu {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .workspace {
+                height: calc(100vh - 115px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                overflow: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .app-navbar {
+                padding: 12px 18px;
+                align-items: flex-start;
+            }
+
+            .nav-brand {
+                font-size: 16px;
+            }
+
+            .nav-menu {
+                gap: 12px;
+            }
+
+            .nav-user {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding-right: 0;
+                padding-bottom: 10px;
+            }
+
+            .workspace {
+                height: auto;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .top-section {
+                grid-template-columns: 1fr;
+                min-height: 480px;
+            }
+
+            .sidebar-fleet {
+                max-height: 260px;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .map-wrapper {
+                height: 420px;
+            }
+
+            .bottom-section {
+                min-height: 300px;
+            }
+
+            .table-header-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .table-container {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 760px;
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <nav class="app-navbar">
         <div class="nav-brand" onclick="window.location.reload()">
             <svg width="35" height="35" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#ff5722"/>
                 <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
             </svg>
-            <span>IZALITH</span>
+            <span>IZALITH - PORTALE PUBBLICA AMMINISTRAZIONE [BA-01]</span>
         </div>
+
         <div class="nav-menu">
-            <button class="nav-btn active" onclick="window.location.href='dashboard.html'">Esplora Mappa</button>
-            <button class="nav-btn" onclick="window.location.href='wallet.html'">Il Mio Wallet</button>
-            <button class="nav-btn" onclick="window.location.href='noleggio-attivo.html'">Noleggio Attivo</button>
-            <button class="nav-btn" onclick="window.location.href='segnalazione.html'">Invia Segnalazione</button>
+            <span class="nav-user" id="utente-loggato">Utente</span>
+            <a href="noleggio.html" class="nav-item">🚗 Noleggio</a>
+            <a href="wallet.html" class="nav-item">💳 Wallet</a>
+            <a href="segnalazioni.html" class="nav-item">⚠️ Segnalazioni</a>
+            <a href="#" class="nav-item logout" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
 
-    <div class="main-workspace">
-        <div class="sidebar-fleet">
-            <div class="fleet-title">Eco-Sharing Flotta</div>
-            <div class="filter-group">
-                <label>Tipologia Veicolo</label>
-                <select id="tipo-veicolo" class="filter-select" onchange="caricaVeicoliFlotta()">
-                    <option value="Tutti">🚲 Mostra Tutti i Mezzi</option>
-                    <option value="Auto">🚗 Auto Elettriche</option>
-                    <option value="Scooter">🛵 Scooter Elettrici</option>
-                    <option value="Monopattino">🛴 Monopattini</option>
-                </select>
+    <div class="workspace">
+        <div class="top-section">
+            <div class="sidebar-fleet">
+                <div class="section-title">Dislocazione Flotta Micro-Mobilità</div>
+                <p style="color: var(--text-muted); font-size: 12px;">Mezzi presenti nell'area urbana BA-01:</p>
+                <div id="lista-veicoli-pa"></div>
             </div>
-            <div id="lista-veicoli"></div>
+
+            <div class="map-wrapper">
+                <iframe
+                    class="map-iframe"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48074.88727038753!2d16.835565345719327!3d41.11714264627239!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1347e8f533a1e943%3A0x307d9e262c8e310!2sBari%20BA!5e0!3m2!1sit!2sit!4v1710000000000!5m2!1sit!2sit"
+                    allowfullscreen=""
+                    loading="lazy">
+                </iframe>
+            </div>
         </div>
 
-        <div class="map-wrapper">
-            <iframe class="map-iframe" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48074.88727038753!2d16.835565345719327!3d41.11714264627239!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1347e8f533a1e943%3A0x307d9e262c8e310!2sBari%20BA!5e0!3m2!1sit!2sit!4v1710000000000!5m2!1sit!2sit" allowfullscreen="" loading="lazy"></iframe>
+        <div class="bottom-section">
+            <div class="table-header-row">
+                <div>
+                    <span class="section-title">Registro Criticità Urbane & Viabilità</span>
+                    <span style="color: var(--text-muted); font-size: 13px; margin-left: 10px;">Solo segnalazioni ambientali ed ostruzioni stradali.</span>
+                </div>
+
+                <button class="btn-refresh" onclick="sincronizzaPortalePA()">🔄 Aggiorna Registro</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Area Urbana</th>
+                            <th>Ambito</th>
+                            <th>Descrizione Problema Riscontrato</th>
+                            <th>Data Segnalazione</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="corpo-tabella-pa"></tbody>
+                </table>
+
+                <div id="messaggio-vuoto" class="no-data" style="display: none;">
+                    Nessuna segnalazione di viabilità o ambientale registrata per quest'area.
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Rinominato in supabaseClient per evitare conflitti
-        const supabaseClient = supabase.createClient(
-            "https://iqadvwrvmecpetuqpysn.supabase.co", 
-            "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
-        );
 
-        window.onload = function() { 
-            // Controllo sicurezza: se l'utente non è loggato, manda al login
-            supabaseClient.auth.getSession().then(({ data }) => {
-                if (!data.session) {
-                    window.location.href = 'login-user.html';
-                } else {
-                    caricaVeicoliFlotta();
-                }
-            });
+    <script>
+        const URL_DB = "https://iqadvwrvmecpetuqpysn.supabase.co";
+        const KEY_DB = "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8";
+        const supabaseClient = supabase.createClient(URL_DB, KEY_DB);
+
+        const flottaMock = [
+            { codice: "Auto-L01", tipo: "Auto", nome: "Lithium Model S", batteria: 94 }
+        ];
+
+        window.onload = async function() {
+            await caricaUtente();
+            sincronizzaPortalePA();
         };
 
-        async function caricaVeicoliFlotta() {
-            const listaDiv = document.getElementById("lista-veicoli");
-            const tipoSelezionato = document.getElementById("tipo-veicolo").value;
-            
-            listaDiv.innerHTML = '<p class="no-vehicles">Sincronizzazione flotta...</p>';
+        async function caricaUtente() {
+            const elementoUtente = document.getElementById("utente-loggato");
 
             try {
-                let query = supabaseClient.from('veicoli').select('*').eq('area_competenza', 'BA-01').eq('stato', 'Disponibile');
-                if (tipoSelezionato !== "Tutti") query = query.eq('tipo', tipoSelezionato);
-                
-                const { data: veicoli, error } = await query;
-                
-                if (error || !veicoli || veicoli.length === 0) {
-                    listaDiv.innerHTML = `<p class="no-vehicles">Nessun veicolo disponibile nell'area.</p>`;
+                const { data: { user }, error } = await supabaseClient.auth.getUser();
+
+                if (error || !user) {
+                    elementoUtente.innerText = "Utente";
                     return;
                 }
 
+                const metadata = user.user_metadata || {};
+
+                const nome = String(metadata.nome || metadata.Nome || "").trim();
+                const cognome = String(metadata.cognome || metadata.Cognome || "").trim();
+                const nomeCompleto = `${nome} ${cognome}`.trim();
+
+                elementoUtente.innerText = nomeCompleto || "Utente";
+
+            } catch (e) {
+                elementoUtente.innerText = "Utente";
+            }
+        }
+
+        async function logout() {
+            await supabaseClient.auth.signOut();
+            window.location.href = "login.html";
+        }
+
+        function sincronizzaPortalePA() {
+            scaricaFlottaUrbanaPA();
+            scaricaSegnalazioniAmbientali();
+        }
+
+        async function scaricaFlottaUrbanaPA() {
+            const listaDiv = document.getElementById("lista-veicoli-pa");
+
+            listaDiv.innerHTML =
+                '<p class="no-data" style="font-size:12px;">Sincronizzazione telemetria...</p>';
+
+            try {
+                const { data: veicoliCloud, error } = await supabaseClient
+                    .from('veicoli')
+                    .select('*')
+                    .eq('area_competenza', 'BA-01');
+
+                let mezzi = (!error && veicoliCloud && veicoliCloud.length > 0)
+                    ? veicoliCloud
+                    : flottaMock;
+
                 listaDiv.innerHTML = "";
-                veicoli.forEach(mezzo => {
+
+                mezzi.forEach(mezzo => {
                     let icona = mezzo.tipo === "Auto" ? "🚗" : (mezzo.tipo === "Scooter" ? "🛵" : "🛴");
+                    let batteria = mezzo.batteria !== null && mezzo.batteria !== undefined ? mezzo.batteria : "N/D";
+                    let coloreBatteria = Number(mezzo.batteria) < 30 ? '#f44336' : '#4CAF50';
+
+                    if (batteria === "N/D") {
+                        coloreBatteria = "var(--text-muted)";
+                    }
+
                     let div = document.createElement('div');
                     div.className = "vehicle-box";
+
                     div.innerHTML = `
                         <div class="vehicle-meta">
-                            <strong>${icona} ${mezzo.nome}</strong>
-                            <span class="battery-level" style="color: ${mezzo.batteria < 30 ? '#f44336' : '#4CAF50'}">${mezzo.batteria}%</span>
+                            <strong>${icona} ${escapeHTML(mezzo.nome || mezzo.codice || "Mezzo non identificato")}</strong>
+                            <span class="battery-level" style="color: ${coloreBatteria}">${escapeHTML(batteria)}${batteria !== "N/D" ? "%" : ""}</span>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 13px;">Codice: ${mezzo.codice}</p>
-                        <button class="btn-submit btn-rent" onclick="avviaNoleggio('${mezzo.codice}')">Noleggia Mezzo</button>
+                        <p style="color: var(--text-muted); font-size: 12px;">Codice Mezzo: ${escapeHTML(mezzo.codice || "N/D")}</p>
                     `;
+
                     listaDiv.appendChild(div);
                 });
+
             } catch (e) {
-                listaDiv.innerHTML = '<p class="no-vehicles">Errore di connessione.</p>';
+                listaDiv.innerHTML = '<p class="no-data">Errore caricamento dati flotta.</p>';
             }
         }
 
-        async function avviaNoleggio(codiceMezzo) {
-            if (!confirm(`Confermi di voler noleggiare il mezzo ${codiceMezzo}?`)) return;
+        async function scaricaSegnalazioniAmbientali() {
+            const corpoTabella = document.getElementById("corpo-tabella-pa");
+            const messaggioVuoto = document.getElementById("messaggio-vuoto");
 
-            const { error } = await supabaseClient
-                .from('veicoli')
-                .update({ stato: 'In uso' })
-                .eq('codice', codiceMezzo);
+            corpoTabella.innerHTML =
+                '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Aggiornamento registro...</td></tr>';
 
-            if (error) {
-                alert("Errore durante il noleggio: " + error.message);
-                return;
+            messaggioVuoto.style.display = "none";
+
+            try {
+                const { data: ticketAmbientali, error } = await supabaseClient
+                    .from('segnalazioni')
+                    .select('*')
+                    .eq('area_competenza', 'BA-01')
+                    .eq('categoria', 'Ambientale / Viabilità')
+                    .order('id', { ascending: false });
+
+                if (error || !ticketAmbientali || ticketAmbientali.length === 0) {
+                    corpoTabella.innerHTML = "";
+                    messaggioVuoto.style.display = "block";
+                    return;
+                }
+
+                corpoTabella.innerHTML = "";
+
+                ticketAmbientali.forEach(ticket => {
+                    let tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td><strong>${escapeHTML(ticket.area_competenza || "N/D")}</strong></td>
+                        <td><span class="badge badge-env">${escapeHTML(ticket.categoria || "N/D")}</span></td>
+                        <td style="color: #E0E0E0; max-width: 500px; word-wrap: break-word;">${escapeHTML(ticket.descrizione || "Nessuna descrizione disponibile.")}</td>
+                        <td style="color: var(--text-muted); font-size: 13px;">${ticket.created_at ? new Date(ticket.created_at).toLocaleString('it-IT') : "N/D"}</td>
+                    `;
+
+                    corpoTabella.appendChild(tr);
+                });
+
+            } catch (err) {
+                corpoTabella.innerHTML =
+                    '<tr><td colspan="4" style="text-align: center; color: #f44336;">Errore di sistema.</td></tr>';
             }
+        }
 
-            sessionStorage.setItem("idMezzo", codiceMezzo);
-            alert(`Noleggio confermato per ${codiceMezzo}.`);
-            window.location.href = 'noleggio-attivo.html';
+        function escapeHTML(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
         }
     </script>
+
 </body>
 </html>
