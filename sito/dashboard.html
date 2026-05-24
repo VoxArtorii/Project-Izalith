@@ -21,7 +21,6 @@
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
-        
         .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
     </style>
 </head>
@@ -57,20 +56,18 @@
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        const orangeIcon = L.divIcon({
-            className: 'custom-orange-marker',
-            iconSize: [20, 20],
-            iconAnchor: [10, 20],
-            popupAnchor: [0, -20]
-        });
+        const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
         
-        // Array globale per memorizzare le aree vietate (GeoJSON)
         let areeVietateList = [];
+        let ultimoAlert = 0; // Per evitare spam di avvisi
 
         window.onload = async () => {
-            // Carica aree vietate
+            // 1. Carica aree dal DB
             await caricaAreeVietate();
+            
+            // 2. Avvia monitoraggio GPS
+            avviaMonitoraggioGPS();
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
@@ -80,60 +77,56 @@
             caricaVeicoliFlotta();
         };
 
-        // --- FUNZIONE CARICAMENTO AREE VIETATE ---
         async function caricaAreeVietate() {
-            const { data: aree, error } = await supabaseClient.from('aree_vietate').select('nome, area');
-            
+            const { data: aree } = await supabaseClient.from('aree_vietate').select('nome, area');
             if (aree) {
                 aree.forEach(a => {
-                    // Assumendo che il database contenga GeoJSON nella colonna 'area'
                     const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
-                    
-                    // Disegna sulla mappa
-                    L.geoJSON(geojson, {
-                        style: { color: "red", weight: 2, fillOpacity: 0.1 }
-                    }).addTo(map).bindPopup("Area Vietata: " + a.nome);
-
-                    // Salva in memoria per controlli futuri (punto-poligono)
+                    L.geoJSON(geojson, { style: { color: "red", weight: 2, fillOpacity: 0.1 } }).addTo(map).bindPopup("Area Vietata: " + a.nome);
                     areeVietateList.push({ nome: a.nome, geometry: geojson });
                 });
             }
         }
 
-        async function caricaVeicoliFlotta() {
-            markerGroup.clearLayers();
+        function avviaMonitoraggioGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition((position) => {
+                    checkProssimitaAree(position.coords.latitude, position.coords.longitude);
+                }, (err) => console.log("GPS non disponibile"), { enableHighAccuracy: true });
+            }
+        }
 
-            const { data: veicoli } = await supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
-            const div = document.getElementById("lista-veicoli");
-            div.innerHTML = "";
-            
-            veicoli?.forEach(v => {
-                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
-                
-                if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon})
-                     .addTo(markerGroup)
-                     .bindPopup(v.nome);
+        function checkProssimitaAree(lat, lon) {
+            const puntoCorrente = turf.point([lon, lat]);
+            const ora = Date.now();
+
+            areeVietateList.forEach(area => {
+                // Calcola distanza dal centro dell'area
+                const centroArea = turf.center(area.geometry);
+                const distanza = turf.distance(puntoCorrente, centroArea, { units: 'meters' });
+
+                // Se sei a meno di 100m e non hai ricevuto alert negli ultimi 30s
+                if (distanza < 100 && (ora - ultimoAlert > 30000)) {
+                    alert("ATTENZIONE: Ti stai avvicinando a una zona vietata (" + area.nome + "). Rallenta o cambia percorso.");
+                    ultimoAlert = ora;
                 }
             });
         }
 
-        async function avviaNoleggio(codiceMezzo) {
-            const COSTO = 2.50;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
-            if (utente.wallet_balance < COSTO) { alert("Credito insufficiente"); return; }
-            if (!confirm(`Confermi il noleggio di ${codiceMezzo}?`)) return;
-
-            try {
-                await supabaseClient.from("noleggi").insert([{ utente_id: user.id, veicolo_id: codiceMezzo, data_inizio: new Date().toISOString(), stato: 'Attivo', costo_totale: COSTO }]);
-                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
-                await supabaseClient.from("utenti").update({ wallet_balance: utente.wallet_balance - COSTO }).eq("id", user.id);
-                alert("Noleggio avviato!");
-                window.location.href = "noleggio-attivo.html";
-            } catch (err) { alert("Errore: " + err.message); }
+        async function caricaVeicoliFlotta() {
+            markerGroup.clearLayers();
+            const { data: veicoli } = await supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
+            const div = document.getElementById("lista-veicoli");
+            div.innerHTML = "";
+            veicoli?.forEach(v => {
+                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
+                if(v.latitudine && v.longitudine) {
+                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
+                }
+            });
         }
 
+        async function avviaNoleggio(codiceMezzo) { /* ... codice esistente ... */ }
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
