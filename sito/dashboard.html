@@ -60,17 +60,13 @@
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
         
-        // Liste globali per i controlli di geofencing
         let areeVietateList = [];
         let areeSostaList = [];
         let ultimoAlert = 0; 
 
         window.onload = async () => {
-            // 1. Carica aree dal DB
             await caricaAreeVietate();
             await caricaAreeSosta();
-            
-            // 2. Avvia monitoraggio GPS
             avviaMonitoraggioGPS();
 
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -107,43 +103,55 @@
             if ("geolocation" in navigator) {
                 navigator.geolocation.watchPosition((position) => {
                     checkProssimitaAree(position.coords.latitude, position.coords.longitude);
-                }, (err) => console.log("GPS non attivo o permesso negato"), { enableHighAccuracy: true });
+                }, (err) => console.log("GPS non attivo"), { enableHighAccuracy: true });
             }
         }
 
         function checkProssimitaAree(lat, lon) {
             const puntoCorrente = turf.point([lon, lat]);
             const ora = Date.now();
-
             areeVietateList.forEach(area => {
                 const centroArea = turf.center(area.geometry);
                 const distanza = turf.distance(puntoCorrente, centroArea, { units: 'meters' });
-
                 if (distanza < 100 && (ora - ultimoAlert > 30000)) {
-                    alert("⚠️ ATTENZIONE: Ti stai avvicinando a una zona vietata (" + area.nome + "). Rallenta!");
+                    alert("⚠️ ATTENZIONE: Zona vietata (" + area.nome + "). Rallenta!");
                     ultimoAlert = ora;
                 }
             });
         }
 
+        // Funzione FILTRATA
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
-            const { data: veicoli } = await supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
+            const tipoSelezionato = document.getElementById("tipo-veicolo").value;
+            
+            let query = supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
+            
+            if (tipoSelezionato !== "Tutti") {
+                query = query.eq("tipo", tipoSelezionato);
+            }
+            
+            const { data: veicoli } = await query;
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
+            
             veicoli?.forEach(v => {
-                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button></div>`;
+                div.innerHTML += `
+                    <div class="vehicle-box">
+                        <strong>${v.nome}</strong><br>
+                        Batteria: ${v.batteria}%<br>
+                        <button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button>
+                    </div>`;
                 if(v.latitudine && v.longitudine) {
                     L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
                 }
             });
         }
 
-        // Funzione per avviare il noleggio
         async function avviaNoleggio(codiceMezzo) {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
-                alert("Devi effettuare il login per noleggiare.");
+                alert("Devi effettuare il login.");
                 window.location.href = "login-user.html";
                 return;
             }
@@ -151,7 +159,6 @@
             if (!confirm("Vuoi procedere con il noleggio del veicolo " + codiceMezzo + "?")) return;
 
             try {
-                // 1. Inserisci il noleggio
                 const { error: insertError } = await supabaseClient
                     .from("noleggi")
                     .insert([{ 
@@ -160,23 +167,18 @@
                         stato: "Attivo", 
                         data_inizio: new Date().toISOString() 
                     }]);
-
                 if (insertError) throw insertError;
 
-                // 2. Aggiorna veicolo
                 const { error: updateError } = await supabaseClient
                     .from("veicoli")
                     .update({ stato: "In uso" })
                     .eq("codice", codiceMezzo);
-
                 if (updateError) throw updateError;
 
-                alert("Noleggio avviato con successo!");
+                alert("Noleggio avviato!");
                 window.location.href = "noleggio-attivo.html";
-
             } catch (err) {
                 alert("Errore: " + err.message);
-                console.error(err);
             }
         }
 
