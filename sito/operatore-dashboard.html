@@ -135,7 +135,10 @@
                     <td>${new Date(inc.timestamp).toLocaleDateString()}</td>
                     <td>${inc.noleggi?.veicolo_id || 'N/A'}</td>
                     <td>${inc.tipo_evento}</td>
-                    <td><button onclick="generaRapportoPA('${inc.id}')" style="background:#FF5722; color:white; border:none; padding:5px 10px; cursor:pointer;">📄 PDF</button></td>
+                    <td>
+                        <button onclick="generaRapportoPA('${inc.id}')" style="background:#FF5722; color:white; border:none; padding:5px 10px; cursor:pointer; margin-right:5px;">📄 PDF</button>
+                        <button onclick="window.location.href='invio-segnalazione.html?id=${inc.id}'" style="background:#008CBA; color:white; border:none; padding:5px 10px; cursor:pointer;">📧 Invia</button>
+                    </td>
                 </tr>
             `).join('') || "<tr><td colspan='4'>Nessun incidente in sospeso.</td></tr>";
         }
