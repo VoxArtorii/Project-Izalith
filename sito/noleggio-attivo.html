@@ -24,15 +24,14 @@
         let areeSostaList = [];
 
         async function init() {
-            // 1. Carica le aree
+            // 1. Carica le aree di sosta autorizzate
             const { data: aree } = await supabaseClient.from("aree_sosta").select("area");
             if (aree) {
-                // Parse corretto delle geometrie
                 areeSostaList = aree.map(a => typeof a.area === 'string' ? JSON.parse(a.area) : a.area);
-                console.log("📍 Aree sosta caricate:", areeSostaList.length);
+                console.log("📍 Aree sosta caricate dal database:", areeSostaList.length);
             }
 
-            // 2. Carica noleggio
+            // 2. Carica il noleggio attivo per questo utente
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) { window.location.href = "login-user.html"; return; }
 
@@ -59,49 +58,52 @@
             btn.style.background = motoreAcceso ? "#f44336" : "#4CAF50";
         }
 
-        // Funzione con DEBUG integrato
-        async function checkPosizioneConsentita() {
-            return new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const { latitude, longitude } = position.coords;
-                    // TURF vuole [Longitudine, Latitudine]
-                    const puntoUtente = turf.point([longitude, latitude]); 
-                    
-                    console.log("📍 Tua posizione (Lon, Lat):", [longitude, latitude]);
+        // NUOVA FUNZIONE: Controlla la posizione del VEICOLO (non del telefono)
+        async function checkPosizioneVeicolo(codiceVeicolo) {
+            console.log("🔍 Controllo posizione veicolo dal database...");
+            
+            // Recupera coordinate del veicolo dal DB
+            const { data: veicolo, error } = await supabaseClient
+                .from("veicoli")
+                .select("latitudine, longitudine")
+                .eq("codice", codiceVeicolo)
+                .single();
 
-                    // Controlla ogni area
-                    let dentro = false;
-                    areeSostaList.forEach((poly, i) => {
-                        const isInside = turf.booleanPointInPolygon(puntoUtente, poly);
-                        console.log(`Area ${i} match:`, isInside);
-                        if (isInside) dentro = true;
-                    });
+            if (error || !veicolo) {
+                console.error("Errore recupero posizione:", error);
+                alert("Errore: impossibile verificare la posizione del veicolo.");
+                return false;
+            }
 
-                    resolve(dentro);
-                }, (err) => {
-                    console.error("Errore GPS:", err);
-                    resolve(false);
-                }, { enableHighAccuracy: true });
-            });
+            console.log("📍 Coordinate veicolo dal DB (Lon, Lat):", [veicolo.longitudine, veicolo.latitudine]);
+
+            // Verifica geofencing con Turf.js
+            const puntoVeicolo = turf.point([veicolo.longitudine, veicolo.latitudine]);
+            const inArea = areeSostaList.some(poly => turf.booleanPointInPolygon(puntoVeicolo, poly));
+            
+            console.log("✅ Veicolo in area autorizzata?", inArea);
+            return inArea;
         }
 
         async function terminaNoleggio(codice, id) {
             if (motoreAcceso) {
-                alert("⚠️ Spegni il motore!");
+                alert("⚠️ Spegni il motore prima di terminare il noleggio!");
                 return;
             }
 
-            const inZona = await checkPosizioneConsentita();
+            // Controllo basato sulla posizione del veicolo
+            const inZona = await checkPosizioneVeicolo(codice);
             
             if (!inZona) {
-                alert("🚫 Non sei in un'area blu autorizzata. Controlla la console (F12) per i dettagli.");
+                alert("🚫 Non puoi terminare il noleggio: il veicolo non si trova in un'area blu autorizzata.");
                 return;
             }
 
+            // Se tutto ok, conclude il noleggio
             try {
                 await supabaseClient.from("noleggi").update({ stato: "Concluso", data_fine: new Date().toISOString() }).eq("id", id);
                 await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", codice);
-                alert("Noleggio terminato!");
+                alert("Noleggio terminato correttamente!");
                 window.location.href = "dashboard.html";
             } catch (err) { alert("Errore DB: " + err.message); }
         }
