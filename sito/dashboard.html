@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Izalith - Mappa Veicoli</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         :root { --primary-orange: #ff5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
@@ -49,8 +52,6 @@
         <div class="map-wrapper"><div id="map"></div></div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         const map = L.map('map').setView([41.1171, 16.8719], 13);
@@ -59,14 +60,17 @@
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
         
+        // Liste globali per i controlli di geofencing
         let areeVietateList = [];
-        let ultimoAlert = 0; // Per evitare spam di avvisi
+        let areeSostaList = [];
+        let ultimoAlert = 0; 
 
         window.onload = async () => {
-            // 1. Carica aree dal DB
+            // Caricamento dati geofencing
             await caricaAreeVietate();
+            await caricaAreeSosta();
             
-            // 2. Avvia monitoraggio GPS
+            // Avvio monitoraggio
             avviaMonitoraggioGPS();
 
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -82,8 +86,19 @@
             if (aree) {
                 aree.forEach(a => {
                     const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
-                    L.geoJSON(geojson, { style: { color: "red", weight: 2, fillOpacity: 0.1 } }).addTo(map).bindPopup("Area Vietata: " + a.nome);
+                    L.geoJSON(geojson, { style: { color: "red", weight: 2, fillOpacity: 0.1 } }).addTo(map).bindPopup("VIETATO: " + a.nome);
                     areeVietateList.push({ nome: a.nome, geometry: geojson });
+                });
+            }
+        }
+
+        async function caricaAreeSosta() {
+            const { data: aree } = await supabaseClient.from('aree_sosta').select('nome, area');
+            if (aree) {
+                aree.forEach(a => {
+                    const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
+                    L.geoJSON(geojson, { style: { color: "blue", weight: 2, fillOpacity: 0.1, fillColor: "blue" } }).addTo(map).bindPopup("Parcheggio: " + a.nome);
+                    areeSostaList.push({ nome: a.nome, geometry: geojson });
                 });
             }
         }
@@ -92,7 +107,7 @@
             if ("geolocation" in navigator) {
                 navigator.geolocation.watchPosition((position) => {
                     checkProssimitaAree(position.coords.latitude, position.coords.longitude);
-                }, (err) => console.log("GPS non disponibile"), { enableHighAccuracy: true });
+                }, (err) => console.log("GPS non attivo o permesso negato"), { enableHighAccuracy: true });
             }
         }
 
@@ -101,13 +116,11 @@
             const ora = Date.now();
 
             areeVietateList.forEach(area => {
-                // Calcola distanza dal centro dell'area
                 const centroArea = turf.center(area.geometry);
                 const distanza = turf.distance(puntoCorrente, centroArea, { units: 'meters' });
 
-                // Se sei a meno di 100m e non hai ricevuto alert negli ultimi 30s
                 if (distanza < 100 && (ora - ultimoAlert > 30000)) {
-                    alert("ATTENZIONE: Ti stai avvicinando a una zona vietata (" + area.nome + "). Rallenta o cambia percorso.");
+                    alert("⚠️ ATTENZIONE: Ti stai avvicinando a una zona vietata (" + area.nome + "). Rallenta!");
                     ultimoAlert = ora;
                 }
             });
@@ -126,7 +139,7 @@
             });
         }
 
-        async function avviaNoleggio(codiceMezzo) { /* ... codice esistente ... */ }
+        async function avviaNoleggio(codiceMezzo) { /* Logica noleggio esistente */ }
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
