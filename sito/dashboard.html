@@ -66,11 +66,11 @@
         let ultimoAlert = 0; 
 
         window.onload = async () => {
-            // Caricamento dati geofencing
+            // 1. Carica aree dal DB
             await caricaAreeVietate();
             await caricaAreeSosta();
             
-            // Avvio monitoraggio
+            // 2. Avvia monitoraggio GPS
             avviaMonitoraggioGPS();
 
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -139,8 +139,51 @@
             });
         }
 
-        async function avviaNoleggio(codiceMezzo) { /* Logica noleggio esistente */ }
-        async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
+        // Funzione per avviare il noleggio
+        async function avviaNoleggio(codiceMezzo) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                alert("Devi effettuare il login per noleggiare.");
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            if (!confirm("Vuoi procedere con il noleggio del veicolo " + codiceMezzo + "?")) return;
+
+            try {
+                // 1. Inserisci il noleggio
+                const { error: insertError } = await supabaseClient
+                    .from("noleggi")
+                    .insert([{ 
+                        utente_id: user.id, 
+                        veicolo_id: codiceMezzo, 
+                        stato: "Attivo", 
+                        data_inizio: new Date().toISOString() 
+                    }]);
+
+                if (insertError) throw insertError;
+
+                // 2. Aggiorna veicolo
+                const { error: updateError } = await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "In uso" })
+                    .eq("codice", codiceMezzo);
+
+                if (updateError) throw updateError;
+
+                alert("Noleggio avviato con successo!");
+                window.location.href = "noleggio-attivo.html";
+
+            } catch (err) {
+                alert("Errore: " + err.message);
+                console.error(err);
+            }
+        }
+
+        async function logout() { 
+            await supabaseClient.auth.signOut(); 
+            window.location.href = "login-user.html"; 
+        }
     </script>
 </body>
 </html>
