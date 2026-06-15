@@ -86,7 +86,7 @@
             caricaVeicoliFlotta();
         };
 
-        async function caricaVeicoliFlotta() {
+async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipo = document.getElementById("tipo-veicolo").value;
             const startF = document.getElementById("filtro-inizio").value;
@@ -101,28 +101,37 @@
             div.innerHTML = "";
             
             veicoli?.forEach(v => {
+                // 1. Escludi se in uso attuale
                 if (v.stato === "In uso") return;
                 
                 let isOccupato = false;
+                
+                // 2. Controllo disponibilità basato su prenotazioni future
                 if (startF && endF) {
-                    // Conversione in millisecondi UTC per un confronto matematico assoluto
                     let s = new Date(startF).getTime();
                     let e = new Date(endF).getTime();
                     
                     prenotazioni?.forEach(p => {
                         if (p.veicolo_id === v.codice) {
-                            // Anche le date del database vengono convertite in millisecondi UTC
                             let ps = new Date(p.data_inizio_prevista).getTime();
                             let pe = new Date(p.data_fine_prevista).getTime();
                             
-                            // Logica di sovrapposizione: se l'intervallo richiesto tocca quello prenotato
-                            if (s < pe && e > ps) isOccupato = true;
+                            // Controllo: se la data non è valida, consideralo occupato per sicurezza
+                            if (isNaN(ps) || isNaN(pe)) {
+                                isOccupato = true;
+                            } 
+                            // Logica di sovrapposizione
+                            else if (s < pe && e > ps) {
+                                isOccupato = true;
+                            }
                         }
                     });
                 }
                 
+                // 3. Se è occupato, non renderizzarlo
                 if (isOccupato) return;
 
+                // 4. Render del veicolo
                 div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
             });
