@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenotazione Veicolo - Project Izalith</title>
+    
+    <!-- Librerie: Supabase, Turf.js (per le distanze GPS), FontAwesome -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-orange: #FF5722;
+            --primary-orange-hover: #E64A19;
+            --dark-bg: #121212;
+            --card-bg: #1E1E1E;
+            --item-bg: #323232;
+            --item-hover: #424242;
+        }
+
+        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding-top: 50px; margin: 0; }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 12px; width: 450px; text-align: center; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        
+        /* Bottoni */
+        .btn-confirm { background: var(--primary-orange); color: white; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-confirm:hover { background: var(--primary-orange-hover); }
+        
+        .btn-cancel { background: #f44336; color: white; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-cancel:hover { background: #d32f2f; }
+        
+        .btn-refresh { background: #555; color: white; border: none; padding: 10px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-refresh:hover { background: #777; }
+        
+        /* Lista Selezionabile */
+        .veh-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .veh-item { background: var(--item-bg); padding: 15px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; text-align: left; transition: all 0.2s ease; display: flex; justify-content: space-between; align-items: center; }
+        .veh-item:hover { background: var(--item-hover); }
+        .veh-item.selected { border-color: var(--primary-orange); background: rgba(255, 87, 34, 0.1); transform: scale(1.02); }
+        
+        .veh-info h4 { margin: 0 0 5px 0; font-size: 16px; color: #fff; }
+        .veh-info p { margin: 0; font-size: 12px; color: #aaa; }
+        
+        /* Modulo Compilabile */
+        .form-section { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; display: none; animation: fadeIn 0.3s ease; border-left: 4px solid var(--primary-orange); }
+        .form-section.active { display: block; }
+        .input-field { width: 100%; padding: 12px; margin-top: 8px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #555; background: #121212; color: white; box-sizing: border-box; font-family: sans-serif; }
+        .input-field:focus { outline: none; border-color: var(--primary-orange); }
+        
+        /* Pop-up Notifiche */
+        .popup-msg { display: none; position: fixed; top: 20px; background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; font-weight: bold; transition: 0.3s; }
+        .popup-success { border-left: 5px solid var(--primary-orange); }
+        .popup-error { border-left: 5px solid #f44336; }
+        .popup-info { border-left: 5px solid #555; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Scrollbar custom */
+        .veh-list::-webkit-scrollbar { width: 6px; }
+        .veh-list::-webkit-scrollbar-track { background: var(--card-bg); }
+        .veh-list::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="popup-notifica" class="popup-msg popup-info">Messaggio di sistema</div>
+
+    <div class="card" id="content">
+        <h3>Localizzazione in corso...</h3>
+        <p style="color: #aaa; font-size: 14px;">Stiamo calcolando le distanze col GPS</p>
+    </div>
+
+    <script>
+        // Configurazione Supabase
+        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        
+        let utenteLoggato = null;
+        let prenotazioneAttiva = null;
+        let veicoliDisponibili = [];
+        let veicoloSelezionato = null;
+        
+        // Variabile per salvare la posizione dell'utente
+        let userPos = null; 
+
+        async function init() {
+            // 1. Identificazione Utente
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            utenteLoggato = user || { id: 'test-user-123', email: 'test@izalith.it' };
+
+            // 2. Acquisizione Posizione GPS (Fondamentale per distanze reali)
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // Salviamo [Longitudine, Latitudine] per Turf.js
+                        userPos = [position.coords.longitude, position.coords.latitude];
+                        verificaPrenotazioni();
+                    },
+                    (error) => {
+                        console.warn("GPS negato. Uso posizione di default (Centro Taranto).");
+                        userPos = [17.2450, 40.4715]; // Fallback Taranto
+                        verificaPrenotazioni();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                userPos = [17.2450, 40.4715];
+                verificaPrenotazioni();
+            }
+        }
+
+        async function verificaPrenotazioni() {
+            const { data: prenotazione, error } = await supabaseClient
+                .from("prenotazioni")
+                .select("*")
+                .eq("utente_id", utenteLoggato.id)
+                .eq("stato", "Attiva")
+                .single();
+
+            if (prenotazione) {
+                prenotazioneAttiva = prenotazione;
+                mostraPrenotazioneAttiva();
+            } else {
+                prenotazioneAttiva = null;
+                caricaVeicoliDisponibili();
+            }
+        }
+
+        async function caricaVeicoliDisponibili() {
+            document.getElementById("content").innerHTML = `<h3>Cerco veicoli nelle vicinanze...</h3>`;
+            
+            const { data: veicoli, error } = await supabaseClient
+                .from("veicoli")
+                .select("*")
+                .eq("stato", "Disponibile");
+            
+            // Dati fittizi se il database fallisce o è vuoto
+            if (error || !veicoli || veicoli.length === 0) {
+                veicoliDisponibili = [
+                    { codice: 'IZ-01', modello: 'Izalith Sedan Car', batteria: '85%', latitudine: 40.4735, longitudine: 17.2450 },
+                    { codice: 'IZ-03', modello: 'Scooter EV E-1', batteria: '60%', latitudine: 40.4680, longitudine: 17.2500 },
+                    { codice: 'IZ-05', modello: 'Monopattino Kick', batteria: '98%', latitudine: 40.4760, longitudine: 17.2430 }
+                ];
+            } else {
+                veicoliDisponibili = veicoli;
+            }
+
+            // CALCOLO DISTANZA REALE CON TURF.JS
+            const puntoUtente = turf.point(userPos);
+            
+            veicoliDisponibili.forEach(v => {
+                // Legge lat/lng dal DB. NOTA: Assicurati che nel tuo DB le colonne si chiamino 'latitudine' e 'longitudine' (oppure 'lat'/'lng')
+                let vLat = v.latitudine || v.lat;
+                let vLng = v.longitudine || v.lng;
+
+                if (vLat && vLng) {
+                    const puntoVeicolo = turf.point([vLng, vLat]);
+                    // Calcola distanza in metri
+                    v.distanza_metri = turf.distance(puntoUtente, puntoVeicolo, { units: 'meters' });
+                } else {
+                    v.distanza_metri = Infinity; // Se il veicolo non ha GPS, lo mette in fondo
+                }
+            });
+
+            // Ordina la lista dal più vicino al più lontano
+            veicoliDisponibili.sort((a, b) => a.distanza_metri - b.distanza_metri);
+
+            mostraListaVeicoli();
+        }
+
+        // Funzione per formattare la distanza in metri o km
+        function formattaDistanza(metri) {
+            if (metri === Infinity) return "Pos. Sconosciuta";
+            if (metri >= 1000) return (metri / 1000).toFixed(1) + " km";
+            return Math.round(metri) + " m";
+        }
+
+        function mostraListaVeicoli() {
+            veicoloSelezionato = null;
+
+            let html = `
+                <h3 style="margin-bottom: 5px;">Veicoli Vicini a Te</h3>
+                <p style="color: #aaa; font-size: 13px; margin-top: 0;">Seleziona un veicolo per prenotarlo</p>
+                <div class="veh-list" id="lista-veicoli">
+            `;
+
+            veicoliDisponibili.forEach(v => {
+                // RISOLUZIONE UNDEFINED: Fallback multiplo per adattarsi a vari nomi di colonne nel tuo database
+                let nomeVeicolo = v.modello || v.nome || v.model || 'Modello Sconosciuto';
+                let idVeicolo = v.codice || v.id_veicolo || v.id || 'N/D';
+                let livelloBatteria = v.batteria || v.soc || v.battery || 'N/A';
+
+                html += `
+                    <div class="veh-item" id="veh-${idVeicolo}" onclick="toggleSelezione('${idVeicolo}')">
+                        <div class="veh-info">
+                            <h4>${nomeVeicolo}</h4>
+                            <p>ID: ${idVeicolo} | Batteria: ${livelloBatteria}</p>
+                        </div>
+                        <div style="color: var(--primary-orange); font-size: 12px; font-weight: bold; text-align:right;">
+                            <i class="fa-solid fa-location-dot"></i><br>
+                            ${formattaDistanza(v.distanza_metri)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            // Modulo compilabile (nascosto di default)
+            html += `
+                <div id="modulo-prenotazione" class="form-section">
+                    <label style="color: #aaa; font-size: 12px;">Tempo stimato per raggiungere il veicolo:</label>
+                    <select id="tempo-arrivo" class="input-field">
+                        <option value="5">Entro 5 minuti</option>
+                        <option value="10">Entro 10 minuti</option>
+                        <option value="15">Entro 15 minuti (Max)</option>
+                    </select>
+                    
+                    <label style="color: #aaa; font-size: 12px;">Codice Promozionale (Opzionale):</label>
+                    <input type="text" id="promo-code" class="input-field" placeholder="Es. IZALITH10">
+                    
+                    <button class="btn-confirm" onclick="confermaPrenotazione()">PRENOTA ORA</button>
+                </div>
+            `;
+
+            html += `<button class="btn-refresh" onclick="caricaVeicoliDisponibili()"><i class="fa-solid fa-rotate-right"></i> Aggiorna Mappa</button>`;
+            
+            document.getElementById("content").innerHTML = html;
+        }
+
+        function toggleSelezione(codice) {
+            const modulo = document.getElementById("modulo-prenotazione");
+            
+            if (veicoloSelezionato === codice) {
+                document.getElementById(`veh-${codice}`).classList.remove('selected');
+                veicoloSelezionato = null;
+                modulo.classList.remove('active');
+                return;
+            }
+
+            document.querySelectorAll('.veh-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`veh-${codice}`).classList.add('selected');
+            veicoloSelezionato = codice;
+            modulo.classList.add('active');
+        }
+
+        async function confermaPrenotazione() {
+            if (!veicoloSelezionato) return;
+
+            const tempoArrivo = document.getElementById("tempo-arrivo").value;
+            mostraNotifica(`Prenotazione in corso...`, 'popup-info');
+
+            try {
+                const { data, error } = await supabaseClient.from("prenotazioni").insert([{
+                    utente_id: utenteLoggato.id,
+                    veicolo_id: veicoloSelezionato,
+                    stato: "Attiva",
+                    scadenza: new Date(Date.now() + tempoArrivo * 60000).toISOString()
+                }]).select().single();
+
+                await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", veicoloSelezionato);
+
+                mostraNotifica(`Veicolo ${veicoloSelezionato} prenotato con successo!`, 'popup-success');
+                
+                prenotazioneAttiva = data || { veicolo_id: veicoloSelezionato, scadenza: new Date(Date.now() + tempoArrivo * 60000) };
+                mostraPrenotazioneAttiva();
+
+            } catch (err) {
+                mostraNotifica("Errore durante la prenotazione", 'popup-error');
+            }
+        }
+
+        function mostraPrenotazioneAttiva() {
+            const scadenza = new Date(prenotazioneAttiva.scadenza);
+            const ora = new Date();
+            let minutiRimasti = Math.max(0, Math.floor((scadenza - ora) / 60000));
+
+            document.getElementById("content").innerHTML = `
+                <h3 style="color: var(--primary-orange); margin-bottom: 5px;">Veicolo Riservato</h3>
+                <p style="color: #aaa; font-size: 14px; margin-top: 0;">Hai sbloccato il veicolo temporaneamente.</p>
+                
+                <div style="background: #323232; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h2 style="margin: 0; font-size: 28px; color: #fff;">${prenotazioneAttiva.veicolo_id}</h2>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #555;">
+                        <span style="font-size: 12px; color: #aaa;">Scadenza Prenotazione:</span><br>
+                        <strong style="font-size: 20px; color: var(--primary-orange);">${minutiRimasti} Minuti</strong>
+                    </div>
+                </div>
+
+                <p style="font-size: 12px; color: #aaa;">Recati al veicolo e avvia il noleggio tramite l'app.</p>
+                <button class="btn-cancel" onclick="cancellaPrenotazione()">CANCELLA PRENOTAZIONE</button>
+            `;
+        }
+
+        async function cancellaPrenotazione() {
+            mostraNotifica("Cancellazione in corso...", 'popup-info');
+
+            try {
+                if (prenotazioneAttiva.id) {
+                    await supabaseClient.from("prenotazioni").update({ stato: "Cancellata" }).eq("id", prenotazioneAttiva.id);
+                }
+                await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", prenotazioneAttiva.veicolo_id);
+
+                mostraNotifica("Prenotazione annullata.", 'popup-success');
+                prenotazioneAttiva = null;
+                caricaVeicoliDisponibili();
+            } catch (err) {
+                mostraNotifica("Errore durante la cancellazione.", 'popup-error');
+            }
+        }
+
+        function mostraNotifica(testo, classeColore) {
+            const popup = document.getElementById("popup-notifica");
+            popup.innerText = testo;
+            popup.className = `popup-msg ${classeColore}`;
+            popup.style.display = "block";
+            
+            setTimeout(() => {
+                popup.style.opacity = "0";
+                setTimeout(() => { popup.style.display = "none"; popup.style.opacity = "1"; }, 300);
+            }, 3000);
+        }
+
+        // Avvia il sistema
+        init();
+    </script>
+</body>
+</html>
