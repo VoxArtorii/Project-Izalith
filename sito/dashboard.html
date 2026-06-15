@@ -73,6 +73,7 @@
 
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
+        const geojsonGroup = L.layerGroup().addTo(map);
         
         window.onload = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -80,8 +81,31 @@
                 const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
                 if (utente) document.getElementById("saldo-display").innerText = `Saldo: ${utente.wallet_balance.toFixed(2)}€`;
             }
+            await disegnaAreeMappa();
             caricaVeicoliFlotta();
         };
+
+        async function disegnaAreeMappa() {
+            geojsonGroup.clearLayers();
+
+            // Carica e disegna le Aree di Sosta (Blu)
+            const { data: sosta } = await supabaseClient.from("aree_sosta").select("nome, area");
+            sosta?.forEach(s => {
+                const geometricData = typeof s.area === 'string' ? JSON.parse(s.area) : s.area;
+                L.geoJSON(geometricData, {
+                    style: { color: "#2196F3", fillColor: "#2196F3", fillOpacity: 0.2, weight: 2 }
+                }).bindPopup(`Punto Sosta: <b>${s.nome}</b>`).addTo(geojsonGroup);
+            });
+
+            // Carica e disegna le Aree Vietate (Rosso)
+            const { data: vietate } = await supabaseClient.from("aree_vietate").select("nome, area");
+            vietate?.forEach(v => {
+                const geometricData = typeof v.area === 'string' ? JSON.parse(v.area) : v.area;
+                L.geoJSON(geometricData, {
+                    style: { color: "#f44336", fillColor: "#f44336", fillOpacity: 0.3, weight: 2 }
+                }).bindPopup(`ZONA VIETATA: <b>${v.nome}</b>`).addTo(geojsonGroup);
+            });
+        }
 
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
@@ -97,11 +121,8 @@
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
-            // Se i filtri non sono valorizzati, non eseguiamo comparazioni restrittive sulle prenotazioni
             const eseguiFiltro = startF && endF;
             
-            // Riconduciamo le stringhe locali ad oggetti Date neutri (senza offset dinamici)
-            // forzando lo stesso trattamento sia in scrittura che in lettura.
             const sRicerca = eseguiFiltro ? new Date(startF.replace('Z', '')).getTime() : 0;
             const eRicerca = eseguiFiltro ? new Date(endF.replace('Z', '')).getTime() : 0;
             
@@ -113,14 +134,12 @@
                 if (eseguiFiltro) {
                     prenotazioni?.forEach(p => {
                         if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
-                            // Puliamo le stringhe da eventuali residui di fuso orario salvati per sincronizzarle all'input locale
                             const dataInizioPulita = p.data_inizio_prevista ? p.data_inizio_prevista.split('.')[0].replace('Z', '') : '';
                             const dataFinePulita = p.data_fine_prevista ? p.data_fine_prevista.split('.')[0].replace('Z', '') : '';
                             
                             const ps = new Date(dataInizioPulita).getTime();
                             const pe = new Date(dataFinePulita).getTime();
                             
-                            // Logica matematica di sovrapposizione esatta
                             if (sRicerca < pe && eRicerca > ps) {
                                 isOccupato = true;
                             }
@@ -144,7 +163,6 @@
                 return;
             }
 
-            // Inviamo l'orario privo di offset adattivi per conservare l'orario reale visibile
             await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
         }
 
