@@ -362,22 +362,23 @@
             caricaVeicoliFlotta();
         };
 
+        // Funzione modificata con i nuovi prezzi dinamici richiesti
         function calcolaCostoMinuto(veicolo) {
             const tipo = (veicolo.tipo || "").toLowerCase();
 
             if (tipo === "monopattino" || tipo === "monopattini") {
-                return 3.00;
+                return 0.05;
             }
 
             if (tipo === "auto") {
-                return 7.00;
+                return 0.10;
             }
 
             if (tipo === "scooter") {
-                return 5.00;
+                return 0.08;
             }
 
-            return 5.00;
+            return 0.08; // Valore di fallback
         }
 
         function statoDisponibile(stato) {
