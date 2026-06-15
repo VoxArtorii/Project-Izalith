@@ -16,6 +16,11 @@
         .btn-charge { background: #FF9800; color: white; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; }
         .btn-stop-charge { background: #9e9e9e; color: white; border: none; padding: 15px; width: 100%; margin-top: 20px; border-radius: 8px; cursor: pointer; }
         
+        /* Stili per la Messa in Pausa */
+        .btn-pause { background: #FFEB3B; color: black; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-resume { background: #4CAF50; color: white; border: none; padding: 15px; width: 100%; margin-top: 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .text-paused { color: #FFEB3B; font-weight: bold; }
+
         /* Stile del pop-up temporaneo */
         .popup-search { display: none; position: fixed; top: 20px; background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; border-left: 5px solid #2196F3; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; font-weight: bold; }
         
@@ -50,8 +55,12 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) { window.location.href = "login-user.html"; return; }
 
+            // Cerchiamo un noleggio che sia o "Attivo" o già "In Pausa" (nel caso l'utente ricarichi la pagina)
             const { data: noleggio, error } = await supabaseClient.from("noleggi")
-                .select("*").eq("utente_id", user.id).eq("stato", "Attivo").single();
+                .select("*")
+                .eq("utente_id", user.id)
+                .in("stato", ["Attivo", "In Pausa"])
+                .single();
             
             if (error || !noleggio) {
                 document.getElementById("content").innerHTML = "<h3>Nessun noleggio attivo</h3><a href='dashboard.html' style='color:white;'>Torna alla mappa</a>";
@@ -59,7 +68,13 @@
             }
             
             datiNoleggioCorrente = noleggio; // Salvo il riferimento globale
-            mostraNoleggioAttivo();
+
+            // Se la pagina viene ricaricata ed era in pausa, mostra direttamente la schermata di pausa
+            if (datiNoleggioCorrente.stato === "In Pausa") {
+                mostraNoleggioInPausa();
+            } else {
+                mostraNoleggioAttivo();
+            }
         }
 
         // Renderizza l'interfaccia standard del Noleggio Attivo
@@ -70,6 +85,7 @@
                 <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">${motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE"}</button>
                 <button class="btn-search" onclick="ricercaVeicolo()">RICERCA IL MIO VEICOLO</button>
                 <button class="btn-charge" onclick="attivaRicarica()">RICARICA VEICOLO</button>
+                <button id="btn-pausa" class="btn-pause" onclick="mettiInPausa()">METTI IN PAUSA</button>
                 <button class="btn-end" onclick="terminaNoleggio('${datiNoleggioCorrente.veicolo_id}', ${datiNoleggioCorrente.id})">TERMINA NOLEGGIO</button>
             `;
             // Ripristina il colore corretto del bottone motore se era acceso
@@ -81,9 +97,18 @@
 
         function toggleMotore() {
             const btn = document.getElementById("btn-motore");
+            const btnPausa = document.getElementById("btn-pausa");
             motoreAcceso = !motoreAcceso;
+            
             btn.innerText = motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE";
             btn.style.background = motoreAcceso ? "#f44336" : "#4CAF50";
+            
+            // Disabilita il pulsante pausa se il motore è acceso
+            if (btnPausa) {
+                btnPausa.disabled = motoreAcceso;
+                btnPausa.style.opacity = motoreAcceso ? "0.5" : "1";
+                btnPausa.style.cursor = motoreAcceso ? "not-allowed" : "pointer";
+            }
         }
 
         // FEATURE 1: Ricerca veicolo con pop-up di 5 secondi
@@ -93,7 +118,7 @@
             
             setTimeout(() => {
                 popup.style.display = "none";
-            }, 5000); // 5000 millisecondi = 5 secondi
+            }, 5000); 
         }
 
         // FEATURE 2: Cambio interfaccia per veicolo in carica e interruzione
@@ -105,11 +130,49 @@
             `;
         }
 
-        // NUOVA FUNZIONE: Controlla la posizione del VEICOLO (non del telefono)
+        // NUOVA FEATURE: Messa in pausa del noleggio
+        async function mettiInPausa() {
+            if (motoreAcceso) {
+                alert("⚠️ Spegni il motore prima di mettere in pausa il noleggio!");
+                return;
+            }
+
+            try {
+                // Aggiorna lo stato su Supabase
+                await supabaseClient.from("noleggi").update({ stato: "In Pausa" }).eq("id", datiNoleggioCorrente.id);
+                datiNoleggioCorrente.stato = "In Pausa";
+                mostraNoleggioInPausa();
+            } catch (err) {
+                alert("Errore durante la messa in pausa: " + err.message);
+            }
+        }
+
+        // NUOVA FEATURE: Ripresa del noleggio dalla pausa
+        async function riprendiNoleggio() {
+            try {
+                // Ripristina lo stato "Attivo" su Supabase
+                await supabaseClient.from("noleggi").update({ stato: "Attivo" }).eq("id", datiNoleggioCorrente.id);
+                datiNoleggioCorrente.stato = "Attivo";
+                mostraNoleggioAttivo();
+            } catch (err) {
+                alert("Errore durante la ripresa del noleggio: " + err.message);
+            }
+        }
+
+        // Interfaccia grafica quando il noleggio è in pausa
+        function mostraNoleggioInPausa() {
+            document.getElementById("content").innerHTML = `
+                <h3 class="text-paused">|| Noleggio in Pausa</h3>
+                <p>Veicolo: ${datiNoleggioCorrente.veicolo_id}</p>
+                <p style="font-size: 0.9em; color: #aaa;">Il motore è bloccato. Nessun altro può prenotare questo mezzo.</p>
+                <button class="btn-resume" onclick="riprendiNoleggio()">RIPRENDI NOLEGGIO</button>
+            `;
+        }
+
+        // Controlla la posizione del VEICOLO (non del telefono)
         async function checkPosizioneVeicolo(codiceVeicolo) {
             console.log("🔍 Controllo posizione veicolo dal database...");
             
-            // Recupera coordinate del veicolo dal DB
             const { data: veicolo, error } = await supabaseClient
                 .from("veicoli")
                 .select("latitudine, longitudine")
@@ -122,13 +185,9 @@
                 return false;
             }
 
-            console.log("📍 Coordinate veicolo dal DB (Lon, Lat):", [veicolo.longitudine, veicolo.latitudine]);
-
-            // Verifica geofencing con Turf.js
             const puntoVeicolo = turf.point([veicolo.longitudine, veicolo.latitudine]);
             const inArea = areeSostaList.some(poly => turf.booleanPointInPolygon(puntoVeicolo, poly));
             
-            console.log("✅ Veicolo in area autorizzata?", inArea);
             return inArea;
         }
 
@@ -138,7 +197,6 @@
                 return;
             }
 
-            // Controllo basato sulla posizione del veicolo
             const inZona = await checkPosizioneVeicolo(codice);
             
             if (!inZona) {
@@ -146,7 +204,6 @@
                 return;
             }
 
-            // Se tutto ok, conclude il noleggio
             try {
                 await supabaseClient.from("noleggi").update({ stato: "Concluso", data_fine: new Date().toISOString() }).eq("id", id);
                 await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", codice);
