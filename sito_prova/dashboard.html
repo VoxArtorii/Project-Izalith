@@ -311,7 +311,7 @@
             </div>
 
             <div class="vehicle-detail-row">
-                <span>Costo all’ora</span>
+                <span>Costo al minuto</span>
                 <span id="modal-costo-veicolo">-</span>
             </div>
 
@@ -362,19 +362,19 @@
             caricaVeicoliFlotta();
         };
 
-        function calcolaCostoOrario(veicolo) {
+        function calcolaCostoMinuto(veicolo) {
             const tipo = (veicolo.tipo || "").toLowerCase();
 
-            if (tipo === "scooter") {
-                return 5.00;
+            if (tipo === "monopattino" || tipo === "monopattini") {
+                return 3.00;
             }
 
             if (tipo === "auto") {
                 return 7.00;
             }
 
-            if (tipo === "monopattino" || tipo === "monopattini") {
-                return 3.00;
+            if (tipo === "scooter") {
+                return 5.00;
             }
 
             return 5.00;
@@ -478,14 +478,14 @@
                 if (isOccupato) return;
 
                 const statoVisualizzato = v.stato || "Disponibile";
-                const costoOrario = calcolaCostoOrario(v);
+                const costoMinuto = calcolaCostoMinuto(v);
 
                 div.innerHTML += `
                     <div class="vehicle-box">
                         <strong>${v.nome}</strong><br>
                         Stato: ${statoVisualizzato}<br>
                         Batteria: ${v.batteria}%<br>
-                        Costo: ${costoOrario.toFixed(2)} €/ora<br>
+                        Costo: ${costoMinuto.toFixed(2)} €/min<br>
                         <button class="btn-rent" onclick="mostraDettaglioVeicolo('${v.codice}')">Noleggia</button>
                         <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button>
                     </div>
@@ -513,13 +513,13 @@
 
             veicoloSelezionato = veicolo;
 
-            const costoOrario = calcolaCostoOrario(veicolo);
+            const costoMinuto = calcolaCostoMinuto(veicolo);
             const stato = veicolo.stato || "Disponibile";
 
             document.getElementById("modal-nome-veicolo").innerText = veicolo.nome || codice;
             document.getElementById("modal-stato-veicolo").innerText = stato;
             document.getElementById("modal-batteria-veicolo").innerText = `${veicolo.batteria || 0}%`;
-            document.getElementById("modal-costo-veicolo").innerText = `${costoOrario.toFixed(2)} €/ora`;
+            document.getElementById("modal-costo-veicolo").innerText = `${costoMinuto.toFixed(2)} €/min`;
 
             const btnConferma = document.querySelector(".btn-confirm-rental");
 
@@ -561,7 +561,7 @@
                 return;
             }
 
-            const costoOrario = calcolaCostoOrario(veicoloSelezionato);
+            const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
             const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
@@ -592,7 +592,9 @@
                 tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
                 stato_iniziale: statoCorrente,
-                costo_orario: costoOrario,
+                costo_minuto: costoMinuto,
+                secondi_motore: 0,
+                prezzo_corrente: 0,
                 data_inizio: dataInizio
             }));
 
