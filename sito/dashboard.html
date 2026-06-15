@@ -6,7 +6,9 @@
     <title>Izalith - Mappa Veicoli</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         :root { --primary-orange: #ff5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
@@ -15,6 +17,7 @@
         .nav-brand { font-weight: bold; font-size: 20px; cursor: pointer; color: var(--primary-orange); }
         .nav-menu { display: flex; align-items: center; gap: 20px; }
         .nav-item { color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .nav-item:hover { color: var(--primary-orange); }
         .main-workspace { flex: 1; display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 65px); }
         .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 25px; overflow-y: auto; }
         .map-wrapper { width: 100%; height: 100%; }
@@ -37,6 +40,7 @@
             <a href="wallet.html" class="nav-item">💳 Wallet</a>
             <a href="mie-prenotazioni.html" class="nav-item">📅 Prenotazioni</a>
             <a href="noleggio-attivo.html" class="nav-item">🚗 Noleggio</a>
+            <a href="segnalazione.html" class="nav-item">⚠️ Segnalazioni</a>
             <a href="#" class="nav-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
@@ -50,6 +54,7 @@
                 <input type="datetime-local" id="filtro-fine">
                 <button class="btn-filter" onclick="caricaVeicoliFlotta()">APPLICA FILTRO</button>
             </div>
+            <div style="font-weight:bold; margin-bottom:15px;">FLOTTA ATTIVA</div>
             <select id="tipo-veicolo" style="width:100%; padding:8px; margin-bottom:15px; background:#222; color:white;" onchange="caricaVeicoliFlotta()">
                 <option value="Tutti">Tutti i Mezzi</option>
                 <option value="Auto">Auto</option>
@@ -62,40 +67,63 @@
     </div>
 
     <script>
-        const supabaseClient = supabase.createClient("URL_SUPABASE", "KEY_SUPABASE");
+        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
+        
+        window.onload = async () => {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
+                if (utente) document.getElementById("saldo-display").innerText = `Saldo: ${utente.wallet_balance.toFixed(2)}€`;
+            }
+            caricaVeicoliFlotta();
+        };
 
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
+            const tipo = document.getElementById("tipo-veicolo").value;
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
-            if (!startF || !endF) return;
+            
+            if (!startF || !endF) {
+                alert("Per favore seleziona sia l'orario di inizio che di fine.");
+                return;
+            }
 
-            // Converto le date in formato ISO Universale (Z = UTC)
-            const sRicerca = new Date(startF).getTime();
-            const eRicerca = new Date(endF).getTime();
-
-            const { data: veicoli } = await supabaseClient.from("veicoli").select("*");
+            let query = supabaseClient.from("veicoli").select("*");
+            if (tipo !== "Tutti") query = query.eq("tipo", tipo);
+            const { data: veicoli } = await query;
             const { data: prenotazioni } = await supabaseClient.from("prenotazioni").select("*");
 
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
-            veicoli.forEach(v => {
+            // Usiamo il valore grezzo (ISO locale) per il confronto, così è coerente con il salvataggio
+            const sRicerca = new Date(startF).getTime();
+            const eRicerca = new Date(endF).getTime();
+            
+            veicoli?.forEach(v => {
                 if (v.stato === "In uso") return;
                 
-                // Controllo sovrapposizione: se la prenotazione si incrocia con la ricerca
-                const occupato = prenotazioni.some(p => {
-                    if (String(p.veicolo_id).trim() !== String(v.codice).trim()) return false;
-                    const ps = new Date(p.data_inizio_prevista).getTime();
-                    const pe = new Date(p.data_fine_prevista).getTime();
-                    return sRicerca < pe && eRicerca > ps;
+                let isOccupato = false;
+                
+                prenotazioni?.forEach(p => {
+                    if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
+                        const ps = new Date(p.data_inizio_prevista).getTime();
+                        const pe = new Date(p.data_fine_prevista).getTime();
+                        
+                        // Confronto matematico puro in millisecondi
+                        if (sRicerca < pe && eRicerca > ps) {
+                            isOccupato = true;
+                        }
+                    }
                 });
-
-                if (occupato) return;
+                
+                if (isOccupato) return;
 
                 div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
@@ -105,17 +133,32 @@
         async function gestisciPrenotazionePulsante(codice) {
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
-            // Salva le date come stringhe standard ISO
-            await avviaPrenotazione(codice, new Date(startF).toISOString(), new Date(endF).toISOString());
+            
+            if (!startF || !endF) {
+                alert("Seleziona data e orario nel filtro!");
+                return;
+            }
+
+            // Inviamo l'orario così com'è (formato ISO locale: YYYY-MM-DDTHH:MM)
+            // Aggiungiamo i secondi per mantenere la coerenza
+            await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
         }
 
-        async function avviaPrenotazione(codice, inizio, fine) {
+        async function avviaPrenotazione(codice, inizio, fine, istantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
-            await supabaseClient.from("prenotazioni").insert([{ utente_id: user.id, veicolo_id: codice, data_inizio_prevista: inizio, data_fine_prevista: fine }]);
+            await supabaseClient.from("prenotazioni").insert([{ utente_id: user.id, veicolo_id: codice, data_inizio_prevista: inizio, data_fine_prevista: fine, tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata' }]);
+            if (istantanea) await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codice);
             alert("Prenotazione effettuata!");
-            caricaVeicoliFlotta(); // Aggiorna lista
+            window.location.href = "mie-prenotazioni.html";
         }
-        
+
+        async function avviaNoleggio(c) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            await supabaseClient.from("noleggi").insert([{ utente_id: user.id, veicolo_id: c, stato: "Attivo", data_inizio: new Date().toISOString() }]);
+            await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", c);
+            window.location.href = "noleggio-attivo.html";
+        }
+
         async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
