@@ -24,7 +24,6 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', sans-serif;
         }
 
         body {
@@ -34,6 +33,7 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            font-family: sans-serif;
         }
 
         .app-navbar {
@@ -243,6 +243,51 @@
             font-weight: bold;
             cursor: pointer;
         }
+
+        .vehicle-evaluation-box {
+            background: #121212;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .vehicle-evaluation-box label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .vehicle-evaluation-box select,
+        .vehicle-evaluation-box textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background: #222;
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+            font-family: sans-serif;
+        }
+
+        .vehicle-evaluation-box textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .btn-save-evaluation {
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
     </style>
 </head>
 
@@ -263,7 +308,9 @@
     <div class="main-workspace">
         <div class="sidebar-fleet">
             <div class="filter-section">
-                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">RICERCA DISPONIBILITÀ</div>
+                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">
+                    RICERCA DISPONIBILITÀ
+                </div>
 
                 <label>INIZIO PREVISTO</label>
                 <input type="datetime-local" id="filtro-inizio">
@@ -322,6 +369,44 @@
         </div>
     </div>
 
+    <div id="modal-valutazione-noleggio" class="modal-overlay">
+        <div class="modal-card">
+            <h3>Stato del veicolo</h3>
+
+            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.4;">
+                Prima di iniziare il noleggio, indica in che stato hai trovato il veicolo.
+            </p>
+
+            <div class="vehicle-detail-row">
+                <span>Veicolo</span>
+                <span id="noleggio-valutazione-nome">-</span>
+            </div>
+
+            <div class="vehicle-detail-row">
+                <span>Batteria</span>
+                <span id="noleggio-valutazione-batteria">-</span>
+            </div>
+
+            <div class="vehicle-evaluation-box">
+                <label>STATO GENERALE</label>
+                <select id="noleggio-valutazione-stato">
+                    <option value="">Seleziona stato</option>
+                    <option value="Ottimo">Ottimo</option>
+                    <option value="Buono">Buono</option>
+                    <option value="Lievi danni">Lievi danni</option>
+                    <option value="Danni evidenti">Danni evidenti</option>
+                </select>
+
+                <label>NOTE SUL VEICOLO</label>
+                <textarea id="noleggio-valutazione-note" placeholder="Scrivi eventuali graffi, ammaccature, problemi o anomalie..."></textarea>
+
+                <button class="btn-save-evaluation" onclick="confermaValutazioneEAvviaNoleggio()">
+                    CONFERMA E INIZIA NOLEGGIO
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const supabaseClient = supabase.createClient(
             "https://iqadvwrvmecpetuqpysn.supabase.co",
@@ -362,23 +447,22 @@
             caricaVeicoliFlotta();
         };
 
-        // Funzione modificata con i nuovi prezzi dinamici richiesti
         function calcolaCostoMinuto(veicolo) {
             const tipo = (veicolo.tipo || "").toLowerCase();
-
-            if (tipo === "monopattino" || tipo === "monopattini") {
-                return 0.05;
-            }
 
             if (tipo === "auto") {
                 return 0.10;
             }
 
             if (tipo === "scooter") {
-                return 0.08;
+                return 0.07;
             }
 
-            return 0.08; // Valore di fallback
+            if (tipo === "monopattino" || tipo === "monopattini") {
+                return 0.03;
+            }
+
+            return 0.07;
         }
 
         function statoDisponibile(stato) {
@@ -555,6 +639,30 @@
                 return;
             }
 
+            document.getElementById("modal-conferma-veicolo").style.display = "none";
+
+            document.getElementById("noleggio-valutazione-nome").innerText = veicoloSelezionato.nome || veicoloSelezionato.codice;
+            document.getElementById("noleggio-valutazione-batteria").innerText = `${veicoloSelezionato.batteria || 0}%`;
+            document.getElementById("noleggio-valutazione-stato").value = "";
+            document.getElementById("noleggio-valutazione-note").value = "";
+
+            document.getElementById("modal-valutazione-noleggio").style.display = "flex";
+        }
+
+        async function confermaValutazioneEAvviaNoleggio() {
+            const statoValutato = document.getElementById("noleggio-valutazione-stato").value;
+            const noteValutazione = document.getElementById("noleggio-valutazione-note").value.trim();
+
+            if (!statoValutato) {
+                alert("Seleziona lo stato generale del veicolo.");
+                return;
+            }
+
+            if (!veicoloSelezionato) {
+                alert("Nessun veicolo selezionato.");
+                return;
+            }
+
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (!user) {
@@ -562,15 +670,18 @@
                 return;
             }
 
+            const statoCorrente = veicoloSelezionato.stato || "Disponibile";
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
-            const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
-                utente_id: user.id,
-                veicolo_id: veicoloSelezionato.codice,
-                stato: "Attivo",
-                data_inizio: dataInizio
-            }]);
+            const { error: rentErr } = await supabaseClient
+                .from("noleggi")
+                .insert([{
+                    utente_id: user.id,
+                    veicolo_id: veicoloSelezionato.codice,
+                    stato: "Attivo",
+                    data_inizio: dataInizio
+                }]);
 
             if (rentErr) {
                 alert("Errore durante l'avvio del noleggio: " + rentErr.message);
@@ -592,13 +703,18 @@
                 nome: veicoloSelezionato.nome,
                 tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
+                latitudine: veicoloSelezionato.latitudine,
+                longitudine: veicoloSelezionato.longitudine,
                 stato_iniziale: statoCorrente,
+                stato_trovato: statoValutato,
+                note_stato_trovato: noteValutazione,
                 costo_minuto: costoMinuto,
                 secondi_motore: 0,
                 prezzo_corrente: 0,
                 data_inizio: dataInizio
             }));
 
+            document.getElementById("modal-valutazione-noleggio").style.display = "none";
             window.location.href = "noleggio-attivo.html";
         }
 
@@ -622,13 +738,20 @@
                 return;
             }
 
-            await supabaseClient.from("prenotazioni").insert([{
-                utente_id: user.id,
-                veicolo_id: codice,
-                data_inizio_prevista: inizio,
-                data_fine_prevista: fine,
-                tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata'
-            }]);
+            const { error } = await supabaseClient
+                .from("prenotazioni")
+                .insert([{
+                    utente_id: user.id,
+                    veicolo_id: codice,
+                    data_inizio_prevista: inizio,
+                    data_fine_prevista: fine,
+                    tipo_prenotazione: istantanea ? "Istantanea" : "Programmata"
+                }]);
+
+            if (error) {
+                alert("Errore durante la prenotazione: " + error.message);
+                return;
+            }
 
             if (istantanea) {
                 await supabaseClient
