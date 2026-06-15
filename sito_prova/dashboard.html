@@ -102,6 +102,7 @@
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
+            line-height: 1.5;
         }
 
         .btn-rent {
@@ -362,23 +363,26 @@
         };
 
         function calcolaCostoOrario(veicolo) {
-            if (veicolo.costo_orario) {
-                return Number(veicolo.costo_orario);
+            const tipo = (veicolo.tipo || "").toLowerCase();
+
+            if (tipo === "scooter") {
+                return 5.00;
             }
 
-            if (veicolo.tipo === "Auto") {
-                return 12.00;
+            if (tipo === "auto") {
+                return 7.00;
             }
 
-            if (veicolo.tipo === "Scooter") {
-                return 6.00;
-            }
-
-            if (veicolo.tipo === "Monopattino") {
+            if (tipo === "monopattino" || tipo === "monopattini") {
                 return 3.00;
             }
 
             return 5.00;
+        }
+
+        function statoDisponibile(stato) {
+            const statoNormalizzato = (stato || "Disponibile").toLowerCase();
+            return statoNormalizzato === "disponibile";
         }
 
         async function disegnaAreeMappa() {
@@ -519,7 +523,7 @@
 
             const btnConferma = document.querySelector(".btn-confirm-rental");
 
-            if (stato !== "Disponibile") {
+            if (!statoDisponibile(stato)) {
                 btnConferma.disabled = true;
                 btnConferma.style.opacity = "0.5";
                 btnConferma.style.cursor = "not-allowed";
@@ -545,7 +549,7 @@
 
             const statoCorrente = veicoloSelezionato.stato || "Disponibile";
 
-            if (statoCorrente !== "Disponibile") {
+            if (!statoDisponibile(statoCorrente)) {
                 alert("Il veicolo non è disponibile. Scegli un altro veicolo.");
                 return;
             }
@@ -585,6 +589,7 @@
             localStorage.setItem("noleggio_corrente_info", JSON.stringify({
                 veicolo_id: veicoloSelezionato.codice,
                 nome: veicoloSelezionato.nome,
+                tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
                 stato_iniziale: statoCorrente,
                 costo_orario: costoOrario,
