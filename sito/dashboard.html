@@ -74,45 +74,94 @@
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
         
-        // ... (funzioni caricaAreeVietate, caricaAreeSosta, avviaMonitoraggioGPS, checkProssimitaAree rimangono invariate)
-        
+        let areeVietateList = [];
+        let areeSostaList = [];
+        let ultimoAlert = 0; 
+
+        window.onload = async () => {
+            await caricaAreeVietate();
+            await caricaAreeSosta();
+            avviaMonitoraggioGPS();
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
+                if (utente) document.getElementById("saldo-display").innerText = `Saldo: ${utente.wallet_balance.toFixed(2)}€`;
+            }
+            caricaVeicoliFlotta();
+        };
+
+        async function caricaAreeVietate() {
+            const { data: aree } = await supabaseClient.from('aree_vietate').select('nome, area');
+            if (aree) {
+                aree.forEach(a => {
+                    const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
+                    L.geoJSON(geojson, { style: { color: "red", weight: 2, fillOpacity: 0.1 } }).addTo(map).bindPopup("VIETATO: " + a.nome);
+                    areeVietateList.push({ nome: a.nome, geometry: geojson });
+                });
+            }
+        }
+
+        async function caricaAreeSosta() {
+            const { data: aree } = await supabaseClient.from('aree_sosta').select('nome, area');
+            if (aree) {
+                aree.forEach(a => {
+                    const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
+                    L.geoJSON(geojson, { style: { color: "blue", weight: 2, fillOpacity: 0.1, fillColor: "blue" } }).addTo(map).bindPopup("Parcheggio: " + a.nome);
+                    areeSostaList.push({ nome: a.nome, geometry: geojson });
+                });
+            }
+        }
+
+        function avviaMonitoraggioGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition((position) => {
+                    checkProssimitaAree(position.coords.latitude, position.coords.longitude);
+                }, () => {}, { enableHighAccuracy: true });
+            }
+        }
+
+        function checkProssimitaAree(lat, lon) {
+            const puntoCorrente = turf.point([lon, lat]);
+            const ora = Date.now();
+            areeVietateList.forEach(area => {
+                const centroArea = turf.center(area.geometry);
+                const distanza = turf.distance(puntoCorrente, centroArea, { units: 'meters' });
+                if (distanza < 100 && (ora - ultimoAlert > 30000)) {
+                    alert("⚠️ ATTENZIONE: Zona vietata (" + area.nome + ").");
+                    ultimoAlert = ora;
+                }
+            });
+        }
+
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
             const filtroInizio = document.getElementById("filtro-inizio").value;
             const filtroFine = document.getElementById("filtro-fine").value;
             
-            // 1. Recupero TUTTI i veicoli dal DB, senza filtri di stato
             let query = supabaseClient.from("veicoli").select("*");
             if (tipoSelezionato !== "Tutti") query = query.eq("tipo", tipoSelezionato);
             const { data: veicoli } = await query;
-
-            // 2. Recupero TUTTE le prenotazioni
             const { data: prenotazioni } = await supabaseClient.from("prenotazioni").select("*");
 
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
             veicoli?.forEach(v => {
-                // Escludiamo il veicolo se è in uso
                 if (v.stato === "In uso") return;
-
-                // Calcolo sovrapposizione in tempo reale
                 let isOccupato = false;
                 if (filtroInizio && filtroFine) {
                     let startReq = new Date(filtroInizio).getTime();
                     let endReq = new Date(filtroFine).getTime();
-                    
                     prenotazioni?.forEach(p => {
                         if (p.veicolo_id === v.codice) {
                             let pStart = new Date(p.data_inizio_prevista).getTime();
                             let pEnd = new Date(p.data_fine_prevista).getTime();
-                            // Intersezione: (StartA < EndB) AND (EndA > StartB)
-                            if (startReq < pEnd && endReq > (pStart - 1800000)) isOccupato = true;
+                            // Logica di sovrapposizione temporale pura
+                            if (startReq < pEnd && endReq > pStart) isOccupato = true;
                         }
                     });
                 }
-                
                 if (isOccupato) return;
 
                 div.innerHTML += `
@@ -128,7 +177,38 @@
             });
         }
 
-        // ... (funzioni avviaNoleggio, gestisciPrenotazionePulsante, avviaPrenotazione, logout invariate)
+        async function avviaNoleggio(codiceMezzo) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            try {
+                await supabaseClient.from("noleggi").insert([{ utente_id: user.id, veicolo_id: codiceMezzo, stato: "Attivo", data_inizio: new Date().toISOString() }]);
+                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", codiceMezzo);
+                window.location.href = "noleggio-attivo.html";
+            } catch (err) { alert(err.message); }
+        }
+
+        async function gestisciPrenotazionePulsante(codiceMezzo) {
+            const filtroInizio = document.getElementById("filtro-inizio").value;
+            const filtroFine = document.getElementById("filtro-fine").value;
+            const tz = (o => (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0'))(new Date().getTimezoneOffset());
+            
+            if (filtroInizio && filtroFine) {
+                await avviaPrenotazione(codiceMezzo, `${filtroInizio}:00${tz}`, `${filtroFine}:00${tz}`, false);
+            } else {
+                let d = new Date(), s = new Date(Date.now() + 3600000);
+                const f = (x) => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}T${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}:${String(x.getSeconds()).padStart(2,'0')}${tz}`;
+                await avviaPrenotazione(codiceMezzo, f(d), f(s), true);
+            }
+        }
+
+        async function avviaPrenotazione(codice, inizio, fine, istantanea) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { error } = await supabaseClient.from("prenotazioni").insert([{ utente_id: user.id, veicolo_id: codice, data_inizio_prevista: inizio, data_fine_prevista: fine, tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata' }]);
+            if (istantanea) await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codice);
+            alert("Prenotazione effettuata!");
+            window.location.href = "mie-prenotazioni.html";
+        }
+
+        async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
 </html>
