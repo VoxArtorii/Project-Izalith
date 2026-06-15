@@ -454,39 +454,9 @@
                 }
             }
 
-            await sincronizzaVeicoliDemo();
             await disegnaAreeMappa();
             caricaVeicoliFlotta();
         };
-
-        async function sincronizzaVeicoliDemo() {
-            for (const veicolo of veicoliDemo) {
-                await sincronizzaVeicoloDemoSingolo(veicolo);
-            }
-        }
-
-        async function sincronizzaVeicoloDemoSingolo(veicolo) {
-            const payload = {
-                codice: veicolo.codice,
-                nome: veicolo.nome,
-                tipo: veicolo.tipo,
-                stato: veicolo.stato,
-                batteria: veicolo.batteria,
-                latitudine: veicolo.latitudine,
-                longitudine: veicolo.longitudine
-            };
-
-            const { error } = await supabaseClient
-                .from("veicoli")
-                .upsert([payload], { onConflict: "codice" });
-
-            if (error) {
-                console.error("Errore sincronizzazione veicolo demo:", error);
-                return false;
-            }
-
-            return true;
-        }
 
         function calcolaCostoMinuto(veicolo) {
             const tipo = (veicolo.tipo || "").toLowerCase();
@@ -669,47 +639,25 @@
                 return;
             }
 
-            const sincronizzato = await sincronizzaVeicoloDemoSingolo(veicoloSelezionato);
-
-            if (!sincronizzato) {
-                alert("Errore: il veicolo non può essere registrato nel database.");
-                return;
-            }
-
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
-            const { error: rentErr } = await supabaseClient
-                .from("noleggi")
-                .insert([{
-                    utente_id: user.id,
-                    veicolo_id: veicoloSelezionato.codice,
-                    stato: "Attivo",
-                    data_inizio: dataInizio
-                }]);
-
-            if (rentErr) {
-                alert("Errore durante l'avvio del noleggio: " + rentErr.message);
-                return;
-            }
-
-            await supabaseClient
-                .from("veicoli")
-                .update({ stato: "In uso" })
-                .eq("codice", veicoloSelezionato.codice);
-
             localStorage.setItem("noleggio_corrente_info", JSON.stringify({
+                id: null,
+                utente_id: user.id,
                 veicolo_id: veicoloSelezionato.codice,
                 nome: veicoloSelezionato.nome,
                 tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
                 latitudine: veicoloSelezionato.latitudine,
                 longitudine: veicoloSelezionato.longitudine,
+                stato: "Attivo",
                 stato_iniziale: statoCorrente,
                 costo_minuto: costoMinuto,
                 secondi_motore: 0,
                 prezzo_corrente: 0,
-                data_inizio: dataInizio
+                data_inizio: dataInizio,
+                demo: true
             }));
 
             window.location.href = "noleggio-attivo.html";
@@ -731,46 +679,16 @@
                 return;
             }
 
-            await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
-        }
+            localStorage.setItem("prenotazione_demo", JSON.stringify({
+                veicolo_id: veicolo.codice,
+                nome: veicolo.nome,
+                tipo: veicolo.tipo,
+                data_inizio_prevista: startF + ":00",
+                data_fine_prevista: endF + ":00",
+                tipo_prenotazione: "Programmata"
+            }));
 
-        async function avviaPrenotazione(codice, inizio, fine, istantanea) {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-
-            if (!user) {
-                window.location.href = "login-user.html";
-                return;
-            }
-
-            const veicolo = getVeicoloDemoByCodice(codice);
-
-            if (!veicolo) {
-                alert("Veicolo non trovato.");
-                return;
-            }
-
-            const sincronizzato = await sincronizzaVeicoloDemoSingolo(veicolo);
-
-            if (!sincronizzato) {
-                alert("Errore: il veicolo non può essere registrato nel database.");
-                return;
-            }
-
-            const { error } = await supabaseClient.from("prenotazioni").insert([{
-                utente_id: user.id,
-                veicolo_id: codice,
-                data_inizio_prevista: inizio,
-                data_fine_prevista: fine,
-                tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata'
-            }]);
-
-            if (error) {
-                alert("Errore durante la prenotazione: " + error.message);
-                return;
-            }
-
-            alert("Prenotazione effettuata!");
-            window.location.href = "mie-prenotazioni.html";
+            alert("Prenotazione demo effettuata!");
         }
 
         async function logout() {
