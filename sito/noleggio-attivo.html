@@ -7,12 +7,26 @@
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <style>
         body { background: #121212; color: white; font-family: sans-serif; display: flex; justify-content: center; padding-top: 50px; }
-        .card { background: #1E1E1E; padding: 30px; border-radius: 12px; width: 400px; text-align: center; }
+        .card { background: #1E1E1E; padding: 30px; border-radius: 12px; width: 400px; text-align: center; position: relative; }
         .btn-end { background: #f44336; color: white; border: none; padding: 15px; width: 100%; margin-top: 20px; border-radius: 8px; cursor: pointer; }
         .btn-toggle { background: #4CAF50; color: white; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; }
+        
+        /* Nuovi stili per le feature richieste */
+        .btn-search { background: #2196F3; color: white; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; }
+        .btn-charge { background: #FF9800; color: white; border: none; padding: 15px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; }
+        .btn-stop-charge { background: #9e9e9e; color: white; border: none; padding: 15px; width: 100%; margin-top: 20px; border-radius: 8px; cursor: pointer; }
+        
+        /* Stile del pop-up temporaneo */
+        .popup-search { display: none; position: fixed; top: 20px; background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; border-left: 5px solid #2196F3; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; font-weight: bold; }
+        
+        /* Testo celeste per lo stato di ricarica */
+        .text-charging { color: #00BCD4; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="popup-ricerca" class="popup-search">Il suo veicolo sta suonando</div>
+
     <div class="card" id="content">
         <h3>Caricamento...</h3>
     </div>
@@ -22,6 +36,7 @@
         
         let motoreAcceso = false;
         let areeSostaList = [];
+        let datiNoleggioCorrente = null; // Memorizza i dati per lo switch della ricarica
 
         async function init() {
             // 1. Carica le aree di sosta autorizzate
@@ -43,12 +58,25 @@
                 return;
             }
             
+            datiNoleggioCorrente = noleggio; // Salvo il riferimento globale
+            mostraNoleggioAttivo();
+        }
+
+        // Renderizza l'interfaccia standard del Noleggio Attivo
+        function mostraNoleggioAttivo() {
             document.getElementById("content").innerHTML = `
                 <h3>Noleggio in corso</h3>
-                <p>Veicolo: ${noleggio.veicolo_id}</p>
-                <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">ACCENDI MOTORE</button>
-                <button class="btn-end" onclick="terminaNoleggio('${noleggio.veicolo_id}', ${noleggio.id})">TERMINA NOLEGGIO</button>
+                <p>Veicolo: ${datiNoleggioCorrente.veicolo_id}</p>
+                <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">${motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE"}</button>
+                <button class="btn-search" onclick="ricercaVeicolo()">RICERCA IL MIO VEICOLO</button>
+                <button class="btn-charge" onclick="attivaRicarica()">RICARICA VEICOLO</button>
+                <button class="btn-end" onclick="terminaNoleggio('${datiNoleggioCorrente.veicolo_id}', ${datiNoleggioCorrente.id})">TERMINA NOLEGGIO</button>
             `;
+            // Ripristina il colore corretto del bottone motore se era acceso
+            if (motoreAcceso) {
+                const btn = document.getElementById("btn-motore");
+                if (btn) btn.style.background = "#f44336";
+            }
         }
 
         function toggleMotore() {
@@ -56,6 +84,25 @@
             motoreAcceso = !motoreAcceso;
             btn.innerText = motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE";
             btn.style.background = motoreAcceso ? "#f44336" : "#4CAF50";
+        }
+
+        // FEATURE 1: Ricerca veicolo con pop-up di 5 secondi
+        function ricercaVeicolo() {
+            const popup = document.getElementById("popup-ricerca");
+            popup.style.display = "block";
+            
+            setTimeout(() => {
+                popup.style.display = "none";
+            }, 5000); // 5000 millisecondi = 5 secondi
+        }
+
+        // FEATURE 2: Cambio interfaccia per veicolo in carica e interruzione
+        function attivaRicarica() {
+            document.getElementById("content").innerHTML = `
+                <h3 class="text-charging">Il veicolo è in carica</h3>
+                <p>Veicolo: ${datiNoleggioCorrente.veicolo_id}</p>
+                <button class="btn-stop-charge" onclick="mostraNoleggioAttivo()">INTERROMPI RICARICA</button>
+            `;
         }
 
         // NUOVA FUNZIONE: Controlla la posizione del VEICOLO (non del telefono)
