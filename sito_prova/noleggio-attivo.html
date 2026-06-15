@@ -151,7 +151,20 @@
             margin-top: 8px;
         }
 
-        .route-box {
+        .btn-pay {
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .route-box,
+        .payment-box {
             background: #121212;
             border: 1px solid var(--border-color);
             padding: 15px;
@@ -159,7 +172,8 @@
             margin-top: 5px;
         }
 
-        .route-box input {
+        .route-box input,
+        .payment-box select {
             width: 100%;
             padding: 10px;
             background: #222;
@@ -260,9 +274,9 @@
         let datiNoleggioCorrente = null;
 
         let timerNoleggio = null;
-        let costoOrarioCorrente = 5.00;
+        let costoMinutoCorrente = 5.00;
         let secondiMotore = 0;
-        let motoreTimerAttivo = false;
+        let pagamentoDaEffettuare = null;
 
         const orangeIcon = L.divIcon({
             className: 'custom-orange-marker',
@@ -308,6 +322,7 @@
             datiNoleggioCorrente = noleggio;
 
             await inizializzaTariffaNoleggio();
+            caricaSecondiDaLocalStorage();
             await aggiornaMappaPosizioneVeicolo();
 
             if (datiNoleggioCorrente.stato === "In Pausa") {
@@ -317,19 +332,19 @@
             }
         }
 
-        function calcolaTariffaDaTipo(tipo) {
+        function calcolaTariffaMinutoDaTipo(tipo) {
             const tipoNormalizzato = (tipo || "").toLowerCase();
 
-            if (tipoNormalizzato === "scooter") {
-                return 5.00;
+            if (tipoNormalizzato === "monopattino" || tipoNormalizzato === "monopattini") {
+                return 3.00;
             }
 
             if (tipoNormalizzato === "auto") {
                 return 7.00;
             }
 
-            if (tipoNormalizzato === "monopattino" || tipoNormalizzato === "monopattini") {
-                return 3.00;
+            if (tipoNormalizzato === "scooter") {
+                return 5.00;
             }
 
             return 5.00;
@@ -338,13 +353,13 @@
         async function inizializzaTariffaNoleggio() {
             const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
 
-            if (infoLocale.costo_orario) {
-                costoOrarioCorrente = Number(infoLocale.costo_orario);
+            if (infoLocale.costo_minuto) {
+                costoMinutoCorrente = Number(infoLocale.costo_minuto);
                 return;
             }
 
             if (infoLocale.tipo) {
-                costoOrarioCorrente = calcolaTariffaDaTipo(infoLocale.tipo);
+                costoMinutoCorrente = calcolaTariffaMinutoDaTipo(infoLocale.tipo);
                 return;
             }
 
@@ -354,7 +369,22 @@
                 .eq("codice", datiNoleggioCorrente.veicolo_id)
                 .single();
 
-            costoOrarioCorrente = calcolaTariffaDaTipo(veicolo?.tipo);
+            costoMinutoCorrente = calcolaTariffaMinutoDaTipo(veicolo?.tipo);
+        }
+
+        function caricaSecondiDaLocalStorage() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            secondiMotore = Number(infoLocale.secondi_motore || 0);
+        }
+
+        function salvaDatiLocaliNoleggio() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+
+            infoLocale.secondi_motore = secondiMotore;
+            infoLocale.prezzo_corrente = calcolaPrezzoAttuale();
+            infoLocale.costo_minuto = costoMinutoCorrente;
+
+            localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
         }
 
         function formattaTempoDaSecondi(secondiTotali) {
@@ -365,13 +395,17 @@
             return `${String(ore).padStart(2, "0")}.${String(minuti).padStart(2, "0")}.${String(secondi).padStart(2, "0")}`;
         }
 
+        function calcolaPrezzoAttuale() {
+            const minutiConteggiati = secondiMotore / 60;
+            return minutiConteggiati * costoMinutoCorrente;
+        }
+
         function aggiornaDisplayCronometroPrezzo() {
             const timerEl = document.getElementById("timer-noleggio");
             const prezzoEl = document.getElementById("prezzo-noleggio");
             const tariffaEl = document.getElementById("tariffa-noleggio");
 
-            const oreConteggiate = secondiMotore / 3600;
-            const prezzoAttuale = oreConteggiate * costoOrarioCorrente;
+            const prezzoAttuale = calcolaPrezzoAttuale();
 
             if (timerEl) {
                 timerEl.innerText = formattaTempoDaSecondi(secondiMotore);
@@ -382,16 +416,16 @@
             }
 
             if (tariffaEl) {
-                tariffaEl.innerText = `${costoOrarioCorrente.toFixed(2)} €/ora`;
+                tariffaEl.innerText = `${costoMinutoCorrente.toFixed(2)} €/min`;
             }
+
+            salvaDatiLocaliNoleggio();
         }
 
         function avviaCronometroMotore() {
             if (timerNoleggio) {
                 return;
             }
-
-            motoreTimerAttivo = true;
 
             timerNoleggio = setInterval(() => {
                 secondiMotore++;
@@ -400,8 +434,6 @@
         }
 
         function fermaCronometroMotore() {
-            motoreTimerAttivo = false;
-
             if (timerNoleggio) {
                 clearInterval(timerNoleggio);
                 timerNoleggio = null;
@@ -454,7 +486,7 @@
 
                     <div class="rental-stat-row">
                         <span>Tariffa applicata</span>
-                        <span id="tariffa-noleggio">0.00 €/ora</span>
+                        <span id="tariffa-noleggio">0.00 €/min</span>
                     </div>
                 </div>
 
@@ -592,7 +624,7 @@
 
                     <div class="rental-stat-row">
                         <span>Tariffa applicata</span>
-                        <span id="tariffa-noleggio">0.00 €/ora</span>
+                        <span id="tariffa-noleggio">0.00 €/min</span>
                     </div>
                 </div>
 
@@ -643,8 +675,7 @@
         }
 
         function mostraNoleggioInPausa() {
-            const oreConteggiate = secondiMotore / 3600;
-            const prezzoAttuale = oreConteggiate * costoOrarioCorrente;
+            const prezzoAttuale = calcolaPrezzoAttuale();
 
             document.getElementById("content").innerHTML = `
                 <h3 class="text-paused">|| Noleggio in Pausa</h3>
@@ -663,7 +694,7 @@
 
                     <div class="rental-stat-row">
                         <span>Tariffa applicata</span>
-                        <span>${costoOrarioCorrente.toFixed(2)} €/ora</span>
+                        <span>${costoMinutoCorrente.toFixed(2)} €/min</span>
                     </div>
                 </div>
 
@@ -705,29 +736,85 @@
                 return;
             }
 
-            try {
-                fermaCronometroMotore();
+            fermaCronometroMotore();
 
+            pagamentoDaEffettuare = {
+                codice: codice,
+                id: id,
+                tempo: formattaTempoDaSecondi(secondiMotore),
+                importo: calcolaPrezzoAttuale()
+            };
+
+            mostraSchermataPagamento();
+        }
+
+        function mostraSchermataPagamento() {
+            const importo = pagamentoDaEffettuare.importo;
+
+            document.getElementById("content").innerHTML = `
+                <h3>Pagamento noleggio</h3>
+
+                <p style="color: var(--text-muted); font-size: 13px;">
+                    Il noleggio è terminato. Completa il pagamento per tornare alla mappa.
+                </p>
+
+                <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Tempo di noleggio</span>
+                        <span>${pagamentoDaEffettuare.tempo}</span>
+                    </div>
+
+                    <div class="rental-stat-row">
+                        <span>Totale da pagare</span>
+                        <span>${importo.toFixed(2)} €</span>
+                    </div>
+                </div>
+
+                <div class="payment-box">
+                    <label style="font-size:12px; color:var(--text-muted); font-weight:bold;">
+                        METODO DI PAGAMENTO
+                    </label>
+
+                    <select id="metodo-pagamento">
+                        <option value="">Seleziona metodo</option>
+                        <option value="Apple Pay">Apple Pay</option>
+                        <option value="Google Pay">Google Pay</option>
+                    </select>
+
+                    <button class="btn-pay" onclick="pagaETerminaNoleggio()">PAGA</button>
+                </div>
+            `;
+        }
+
+        async function pagaETerminaNoleggio() {
+            const metodo = document.getElementById("metodo-pagamento").value;
+
+            if (!metodo) {
+                alert("Seleziona Apple Pay o Google Pay per procedere.");
+                return;
+            }
+
+            try {
                 await supabaseClient
                     .from("noleggi")
                     .update({
                         stato: "Concluso",
                         data_fine: new Date().toISOString()
                     })
-                    .eq("id", id);
+                    .eq("id", pagamentoDaEffettuare.id);
 
                 await supabaseClient
                     .from("veicoli")
                     .update({ stato: "Disponibile" })
-                    .eq("codice", codice);
+                    .eq("codice", pagamentoDaEffettuare.codice);
 
                 localStorage.removeItem("noleggio_corrente_info");
 
-                alert("Noleggio terminato correttamente!");
+                alert("Pagamento avvenuto con successo tramite " + metodo + ".");
                 window.location.href = "dashboard.html";
 
             } catch (err) {
-                alert("Errore DB: " + err.message);
+                alert("Errore durante la chiusura del noleggio: " + err.message);
             }
         }
 
