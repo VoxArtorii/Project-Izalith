@@ -74,9 +74,6 @@
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
         const markerGroup = L.layerGroup().addTo(map);
         
-        let areeVietateList = [];
-        let ultimoAlert = 0; 
-
         window.onload = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
@@ -105,7 +102,7 @@
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
-            // Conversione in millisecondi UTC (universali, indipendenti dal fuso orario locale)
+            // Usiamo il valore grezzo (ISO locale) per il confronto, così è coerente con il salvataggio
             const sRicerca = new Date(startF).getTime();
             const eRicerca = new Date(endF).getTime();
             
@@ -115,11 +112,7 @@
                 let isOccupato = false;
                 
                 prenotazioni?.forEach(p => {
-                    const idVeicoloInPrenotazione = String(p.veicolo_id).trim();
-                    const idVeicoloCorrente = String(v.codice).trim();
-                    
-                    if (idVeicoloInPrenotazione === idVeicoloCorrente) {
-                        // Il parse di una stringa ISO (salvata con toISOString) è sempre corretto
+                    if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
                         const ps = new Date(p.data_inizio_prevista).getTime();
                         const pe = new Date(p.data_fine_prevista).getTime();
                         
@@ -146,11 +139,9 @@
                 return;
             }
 
-            // Usiamo toISOString() per salvare il momento esatto in UTC, eliminando problemi di offset locale
-            const sDate = new Date(startF);
-            const eDate = new Date(endF);
-            
-            await avviaPrenotazione(codice, sDate.toISOString(), eDate.toISOString(), false);
+            // Inviamo l'orario così com'è (formato ISO locale: YYYY-MM-DDTHH:MM)
+            // Aggiungiamo i secondi per mantenere la coerenza
+            await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
         }
 
         async function avviaPrenotazione(codice, inizio, fine, istantanea) {
