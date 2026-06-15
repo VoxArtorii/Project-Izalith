@@ -172,8 +172,7 @@
             margin-top: 5px;
         }
 
-        .route-box input,
-        .payment-box select {
+        .route-box input {
             width: 100%;
             padding: 10px;
             background: #222;
@@ -328,9 +327,6 @@
             if (!noleggio) {
                 document.getElementById("content").innerHTML = `
                     <h3>Nessun noleggio attivo</h3>
-                    <p style="color:#aaa; font-size:13px;">
-                        Non risulta nessun noleggio attivo associato al tuo utente.
-                    </p>
                     <a href="dashboard.html" style="color:white;">Torna alla mappa</a>
                 `;
                 return;
@@ -460,23 +456,37 @@
         }
 
         async function aggiornaMappaPosizioneVeicolo() {
-            const { data: v } = await supabaseClient
-                .from("veicoli")
-                .select("latitudine, longitudine, nome")
-                .eq("codice", datiNoleggioCorrente.veicolo_id)
-                .single();
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
 
-            if (v && v.latitudine && v.longitudine) {
+            let latitudine = infoLocale.latitudine;
+            let longitudine = infoLocale.longitudine;
+            let nome = infoLocale.nome || datiNoleggioCorrente.veicolo_id;
+
+            if (!latitudine || !longitudine) {
+                const { data: v } = await supabaseClient
+                    .from("veicoli")
+                    .select("latitudine, longitudine, nome")
+                    .eq("codice", datiNoleggioCorrente.veicolo_id)
+                    .single();
+
+                if (v) {
+                    latitudine = v.latitudine;
+                    longitudine = v.longitudine;
+                    nome = v.nome;
+                }
+            }
+
+            if (latitudine && longitudine) {
                 if (veicoloMarker) {
                     map.removeLayer(veicoloMarker);
                 }
 
-                veicoloMarker = L.marker([v.latitudine, v.longitudine], { icon: orangeIcon })
+                veicoloMarker = L.marker([latitudine, longitudine], { icon: orangeIcon })
                     .addTo(map)
-                    .bindPopup(`Il tuo veicolo: ${v.nome}`)
+                    .bindPopup(`Il tuo veicolo: ${nome}`)
                     .openPopup();
 
-                map.setView([v.latitudine, v.longitudine], 15);
+                map.setView([latitudine, longitudine], 15);
             }
         }
 
@@ -663,6 +673,12 @@
 
                 datiNoleggioCorrente.stato = "In Pausa";
 
+                const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+                infoLocale.stato = "In Pausa";
+                infoLocale.secondi_motore = secondiMotore;
+                infoLocale.prezzo_corrente = calcolaPrezzoAttuale();
+                localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
+
                 if (routingControl) {
                     map.removeControl(routingControl);
                 }
@@ -683,6 +699,10 @@
 
                 datiNoleggioCorrente.stato = "Attivo";
                 motoreAcceso = false;
+
+                const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+                infoLocale.stato = "Attivo";
+                localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
 
                 mostraNoleggioAttivo();
 
@@ -762,20 +782,45 @@
                 importo: calcolaPrezzoAttuale()
             };
 
-            mostraSchermataPagamento();
+            mostraSchermataPagamentoWallet();
         }
 
-        function mostraSchermataPagamento() {
-            const importo = pagamentoDaEffettuare.importo;
+        async function mostraSchermataPagamentoWallet() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            const { data: utente, error } = await supabaseClient
+                .from("utenti")
+                .select("wallet_balance")
+                .eq("id", user.id)
+                .single();
+
+            if (error || !utente) {
+                alert("Errore nel recupero del saldo Wallet.");
+                return;
+            }
+
+            const saldoWallet = Number(utente.wallet_balance || 0);
+            const importo = Number(pagamentoDaEffettuare.importo || 0);
+            const saldoDopoPagamento = saldoWallet - importo;
 
             document.getElementById("content").innerHTML = `
                 <h3>Pagamento noleggio</h3>
 
                 <p style="color: var(--text-muted); font-size: 13px;">
-                    Il noleggio è terminato. Completa il pagamento per tornare alla mappa.
+                    Il noleggio è terminato. Il pagamento verrà effettuato tramite Wallet.
                 </p>
 
                 <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Metodo pagamento</span>
+                        <span>Wallet</span>
+                    </div>
+
                     <div class="rental-stat-row">
                         <span>Tempo di noleggio</span>
                         <span>${pagamentoDaEffettuare.tempo}</span>
@@ -785,34 +830,71 @@
                         <span>Totale da pagare</span>
                         <span>${importo.toFixed(2)} €</span>
                     </div>
+
+                    <div class="rental-stat-row">
+                        <span>Saldo attuale</span>
+                        <span>${saldoWallet.toFixed(2)} €</span>
+                    </div>
+
+                    <div class="rental-stat-row">
+                        <span>Saldo dopo pagamento</span>
+                        <span>${saldoDopoPagamento.toFixed(2)} €</span>
+                    </div>
                 </div>
 
                 <div class="payment-box">
-                    <label style="font-size:12px; color:var(--text-muted); font-weight:bold;">
-                        METODO DI PAGAMENTO
-                    </label>
+                    <p style="font-size: 13px; color: #aaa;">
+                        Premi PAGA per scalare l'importo dal Wallet e chiudere definitivamente il noleggio.
+                    </p>
 
-                    <select id="metodo-pagamento">
-                        <option value="">Seleziona metodo</option>
-                        <option value="Apple Pay">Apple Pay</option>
-                        <option value="Google Pay">Google Pay</option>
-                    </select>
-
-                    <button class="btn-pay" onclick="pagaETerminaNoleggio()">PAGA</button>
+                    <button class="btn-pay" onclick="pagaConWalletETerminaNoleggio()">
+                        PAGA CON WALLET
+                    </button>
                 </div>
             `;
         }
 
-        async function pagaETerminaNoleggio() {
-            const metodo = document.getElementById("metodo-pagamento").value;
-
-            if (!metodo) {
-                alert("Seleziona Apple Pay o Google Pay per procedere.");
-                return;
-            }
-
+        async function pagaConWalletETerminaNoleggio() {
             try {
-                await supabaseClient
+                const { data: { user } } = await supabaseClient.auth.getUser();
+
+                if (!user) {
+                    window.location.href = "login-user.html";
+                    return;
+                }
+
+                const { data: utente, error: walletReadError } = await supabaseClient
+                    .from("utenti")
+                    .select("wallet_balance")
+                    .eq("id", user.id)
+                    .single();
+
+                if (walletReadError || !utente) {
+                    alert("Errore nel recupero del saldo Wallet.");
+                    return;
+                }
+
+                const saldoAttuale = Number(utente.wallet_balance || 0);
+                const importo = Number(pagamentoDaEffettuare.importo || 0);
+
+                if (saldoAttuale < importo) {
+                    alert("Saldo Wallet insufficiente. Ricarica il Wallet prima di completare il pagamento.");
+                    return;
+                }
+
+                const nuovoSaldo = saldoAttuale - importo;
+
+                const { error: walletUpdateError } = await supabaseClient
+                    .from("utenti")
+                    .update({ wallet_balance: nuovoSaldo })
+                    .eq("id", user.id);
+
+                if (walletUpdateError) {
+                    alert("Errore durante l'aggiornamento del Wallet: " + walletUpdateError.message);
+                    return;
+                }
+
+                const { error: rentalUpdateError } = await supabaseClient
                     .from("noleggi")
                     .update({
                         stato: "Concluso",
@@ -820,18 +902,28 @@
                     })
                     .eq("id", pagamentoDaEffettuare.id);
 
-                await supabaseClient
+                if (rentalUpdateError) {
+                    alert("Pagamento effettuato, ma errore durante la chiusura del noleggio: " + rentalUpdateError.message);
+                    return;
+                }
+
+                const { error: vehicleUpdateError } = await supabaseClient
                     .from("veicoli")
                     .update({ stato: "Disponibile" })
                     .eq("codice", pagamentoDaEffettuare.codice);
 
+                if (vehicleUpdateError) {
+                    alert("Pagamento effettuato, ma errore durante l'aggiornamento dello stato del veicolo: " + vehicleUpdateError.message);
+                    return;
+                }
+
                 localStorage.removeItem("noleggio_corrente_info");
 
-                alert("Pagamento avvenuto con successo tramite " + metodo + ".");
+                alert("Pagamento avvenuto con successo. Il totale è stato scalato dal Wallet.");
                 window.location.href = "dashboard.html";
 
             } catch (err) {
-                alert("Errore durante la chiusura del noleggio: " + err.message);
+                alert("Errore durante il pagamento Wallet: " + err.message);
             }
         }
 
