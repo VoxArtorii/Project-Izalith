@@ -244,29 +244,39 @@
             }
         }
 
-        // AGGIORNATA: Genera le stringhe temporali rispettando il fuso orario locale
+        // FUNZIONE AGGIORNATA: Calcola l'offset ISO del Timezone locale (es: +02:00) per evitare sfasamenti su Supabase
         async function gestisciPrenotazionePulsante(codiceMezzo) {
             const filtroInizio = document.getElementById("filtro-inizio").value;
             const filtroFine = document.getElementById("filtro-fine").value;
 
+            // Helper per ricavare la stringa di Timezone esatta del browser (+02:00, +01:00, ecc.)
+            const ottieniTimezoneOffset = () => {
+                const offset = new Date().getTimezoneOffset();
+                const absOffset = Math.abs(offset);
+                const ore = String(Math.floor(absOffset / 60)).padStart(2, '0');
+                const minuti = String(absOffset % 60).padStart(2, '0');
+                return (offset <= 0 ? '+' : '-') + ore + ':' + minuti;
+            };
+
+            const tzOffset = ottieniTimezoneOffset();
             let dataInizioStr, dataFineStr;
 
             if (filtroInizio && filtroFine) {
-                // Sostituiamo il carattere 'T' con uno spazio per renderlo pienamente compatibile con i campi TIMESTAMP di PostgreSQL
-                dataInizioStr = filtroInizio.replace('T', ' ');
-                dataFineStr = filtroFine.replace('T', ' ');
+                // Esempio output finale accettato da Supabase: "2026-06-15T21:00:00+02:00"
+                dataInizioStr = `${filtroInizio}:00${tzOffset}`;
+                dataFineStr = `${filtroFine}:00${tzOffset}`;
                 await avviaPrenotazione(codiceMezzo, dataInizioStr, dataFineStr, false);
             } else {
-                // Se è istantanea, creiamo una stringa ISO locale per evitare sfasamenti di ore
+                // Prenotazione Istantanea
                 let oraLocale = new Date();
-                let scadenzaLocale = new Date(Date.now() + 60 * 60 * 1000); // 1 ora di default
+                let scadenzaLocale = new Date(Date.now() + 60 * 60 * 1000);
                 
-                // Formattazione manuale YYYY-MM-DD HH:MM:SS basata sull'orario del browser dell'utente
-                const formattaLocale = (d) => {
-                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                const formattaConTimezone = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${tzOffset}`;
                 };
                 
-                await avviaPrenotazione(codiceMezzo, formattaLocale(oraLocale), formattaLocale(scadenzaLocale), true);
+                await avviaPrenotazione(codiceMezzo, formattaConTimezone(oraLocale), formattaConTimezone(scadenzaLocale), true);
             }
         }
 
