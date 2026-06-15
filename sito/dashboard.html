@@ -26,6 +26,8 @@
         .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
         .btn-reserve { background: #2196F3; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
         .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+        
+        /* Nuovi elementi di stile per i filtri orari */
         .filter-section { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
         .filter-section label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px; font-weight: bold; }
         .filter-section input { width: 100%; padding: 8px; background: #222; border: 1px solid var(--border-color); color: white; border-radius: 4px; margin-top: 3px; }
@@ -54,6 +56,7 @@
                 <input type="datetime-local" id="filtro-fine">
                 <button class="btn-filter" onclick="caricaVeicoliFlotta()">APPLICA FILTRO</button>
             </div>
+
             <div style="font-weight:bold; margin-bottom:15px;">FLOTTA ATTIVA</div>
             <select id="tipo-veicolo" style="width:100%; padding:8px; margin-bottom:15px; background:#222; color:white;" onchange="caricaVeicoliFlotta()">
                 <option value="Tutti">Tutti i Mezzi</option>
@@ -67,7 +70,7 @@
     </div>
 
     <script>
-        const supabaseClient = supabase.createClient("URL_SUPABASE", "API_KEY_SUPABASE");
+        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -75,9 +78,14 @@
         const markerGroup = L.layerGroup().addTo(map);
         
         let areeVietateList = [];
+        let areeSostaList = [];
         let ultimoAlert = 0; 
 
         window.onload = async () => {
+            await caricaAreeVietate();
+            await caricaAreeSosta();
+            avviaMonitoraggioGPS();
+
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (user) {
                 const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
@@ -86,6 +94,50 @@
             caricaVeicoliFlotta();
         };
 
+        async function caricaAreeVietate() {
+            const { data: aree } = await supabaseClient.from('aree_vietate').select('nome, area');
+            if (aree) {
+                aree.forEach(a => {
+                    const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
+                    L.geoJSON(geojson, { style: { color: "red", weight: 2, fillOpacity: 0.1 } }).addTo(map).bindPopup("VIETATO: " + a.nome);
+                    areeVietateList.push({ nome: a.nome, geometry: geojson });
+                });
+            }
+        }
+
+        async function caricaAreeSosta() {
+            const { data: aree } = await supabaseClient.from('aree_sosta').select('nome, area');
+            if (aree) {
+                aree.forEach(a => {
+                    const geojson = typeof a.area === 'string' ? JSON.parse(a.area) : a.area;
+                    L.geoJSON(geojson, { style: { color: "blue", weight: 2, fillOpacity: 0.1, fillColor: "blue" } }).addTo(map).bindPopup("Parcheggio: " + a.nome);
+                    areeSostaList.push({ nome: a.nome, geometry: geojson });
+                });
+            }
+        }
+
+        function avviaMonitoraggioGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition((position) => {
+                    checkProssimitaAree(position.coords.latitude, position.coords.longitude);
+                }, (err) => console.log("GPS non attivo"), { enableHighAccuracy: true });
+            }
+        }
+
+        function checkProssimitaAree(lat, lon) {
+            const puntoCorrente = turf.point([lon, lat]);
+            const ora = Date.now();
+            areeVietateList.forEach(area => {
+                const centroArea = turf.center(area.geometry);
+                const distanza = turf.distance(puntoCorrente, centroArea, { units: 'meters' });
+                if (distanza < 100 && (ora - ultimoAlert > 30000)) {
+                    alert("⚠️ ATTENZIONE: Zona vietata (" + area.nome + "). Rallenta!");
+                    ultimoAlert = ora;
+                }
+            });
+        }
+
+        // FUNZIONE CORRETTA: Risolve la falla del filtro orario effettuando la verifica di sovrapposizione in JS
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
@@ -94,89 +146,176 @@
             
             let veicoliOccupati = [];
 
+            // Scarichiamo tutte le prenotazioni per calcolare accuratamente i conflitti di fuso orario in JS
             const { data: tutteLePrenotazioni } = await supabaseClient
                 .from("prenotazioni")
                 .select("veicolo_id, data_inizio_prevista, data_fine_prevista");
 
             if (filtroInizio && filtroFine) {
-                let inizioRichiesto = new Date(filtroInizio).getTime();
-                let fineRichiesta = new Date(filtroFine).getTime();
+                let inizioRichiesto = new Date(filtroInizio);
+                let fineRichiesta = new Date(filtroFine);
 
                 if (tutteLePrenotazioni) {
                     tutteLePrenotazioni.forEach(p => {
-                        let pInizio = new Date(p.data_inizio_prevista).getTime();
-                        let pFine = new Date(p.data_fine_prevista).getTime();
-                        let anticipo = 30 * 60000;
+                        let pInizio = new Date(p.data_inizio_prevista);
+                        let pFine = new Date(p.data_fine_prevista);
+                        
+                        // FORMULA DI INTERSEZIONE ORARIA:
+                        // Un veicolo è occupato se l'inizio richiesto cade prima della fine della prenotazione
+                        // E la fine richiesta cade dopo l'inizio della prenotazione (considerando l'anticipo di 30 min)
+                        let pInizioConAnticipo = new Date(pInizio.getTime() - 30 * 60000);
 
-                        if (inizioRichiesto < pFine && fineRichiesta > (pInizio - anticipo)) {
+                        if (inizioRichiesto < pFine && fineRichiesta > pInizioConAnticipo) {
                             veicoliOccupati.push(p.veicolo_id);
                         }
                     });
                 }
             } else {
+                // Caso Real-time senza filtri: nascondi solo se la prenotazione inizia entro i prossimi 30 minuti
                 if (tutteLePrenotazioni) {
-                    let adesso = new Date().getTime();
+                    let adesso = new Date();
                     tutteLePrenotazioni.forEach(p => {
-                        let pInizio = new Date(p.data_inizio_prevista).getTime();
-                        let diffMinuti = (pInizio - adesso) / 60000;
-                        if (diffMinuti > 0 && diffMinuti <= 30) veicoliOccupati.push(p.veicolo_id);
+                        let pInizio = new Date(p.data_inizio_prevista);
+                        let diffMinuti = (pInizio - adesso) / (1000 * 60);
+                        
+                        if (diffMinuti > 0 && diffMinuti <= 30) {
+                            veicoliOccupati.push(p.veicolo_id);
+                        }
                     });
                 }
             }
             
-            let query = supabaseClient.from("veicoli").select("*");
-            if (tipoSelezionato !== "Tutti") query = query.eq("tipo", tipoSelezionato);
+            // Carica tutti i veicoli attivi
+            let query = supabaseClient.from("veicoli").select("*").in("stato", ["Disponibile", "Prenotato"]);
+            
+            if (tipoSelezionato !== "Tutti") {
+                query = query.eq("tipo", tipoSelezionato);
+            }
             
             const { data: veicoli } = await query;
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
             veicoli?.forEach(v => {
-                if (v.stato === "In uso" || veicoliOccupati.includes(v.codice)) return;
+                if (v.stato === "In uso") return;
+                if (veicoliOccupati.includes(v.codice)) return;
 
                 div.innerHTML += `
                     <div class="vehicle-box">
                         <strong>${v.nome}</strong><br>
                         Batteria: ${v.batteria}%<br>
                         <button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button>
-                        <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button>
+                        <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota Veicolo</button>
                     </div>`;
                 if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(`<b>${v.nome}</b>`);
+                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(`<b>${v.nome}</b><br><button onclick="gestisciPrenotazionePulsante('${v.codice}')" style="background:#2196F3;color:white;border:none;padding:5px;cursor:pointer;margin-top:5px;border-radius:4px;width:100%;">Prenota</button>`);
                 }
             });
+        }
+
+        async function avviaNoleggio(codiceMezzo) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                alert("Devi effettuare il login.");
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            if (!confirm("Vuoi procedere con il noleggio del veicolo " + codiceMezzo + "?")) return;
+
+            try {
+                const { error: insertError } = await supabaseClient
+                    .from("noleggi")
+                    .insert([{ 
+                        utente_id: user.id, 
+                        veicolo_id: codiceMezzo, 
+                        stato: "Attivo", 
+                        data_inizio: new Date().toISOString() 
+                    }]);
+                if (insertError) throw insertError;
+
+                const { error: updateError } = await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "In uso" })
+                    .eq("codice", codiceMezzo);
+                if (updateError) throw updateError;
+
+                alert("Noleggio avviato!");
+                window.location.href = "noleggio-attivo.html";
+            } catch (err) {
+                alert("Errore: " + err.message);
+            }
         }
 
         async function gestisciPrenotazionePulsante(codiceMezzo) {
             const filtroInizio = document.getElementById("filtro-inizio").value;
             const filtroFine = document.getElementById("filtro-fine").value;
-            const tzOffset = (offset => (offset <= 0 ? '+' : '-') + String(Math.floor(Math.abs(offset)/60)).padStart(2,'0') + ':' + String(Math.abs(offset)%60).padStart(2,'0'))(new Date().getTimezoneOffset());
+
+            const ottieniTimezoneOffset = () => {
+                const offset = new Date().getTimezoneOffset();
+                const absOffset = Math.abs(offset);
+                const ore = String(Math.floor(absOffset / 60)).padStart(2, '0');
+                const minuti = String(absOffset % 60).padStart(2, '0');
+                return (offset <= 0 ? '+' : '-') + ore + ':' + minuti;
+            };
+
+            const tzOffset = ottieniTimezoneOffset();
+            let dataInizioStr, dataFineStr;
 
             if (filtroInizio && filtroFine) {
-                await avviaPrenotazione(codiceMezzo, `${filtroInizio}:00${tzOffset}`, `${filtroFine}:00${tzOffset}`, false);
+                dataInizioStr = `${filtroInizio}:00${tzOffset}`;
+                dataFineStr = `${filtroFine}:00${tzOffset}`;
+                await avviaPrenotazione(codiceMezzo, dataInizioStr, dataFineStr, false);
             } else {
-                let ora = new Date();
-                let scad = new Date(Date.now() + 3600000);
-                const f = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}${tzOffset}`;
-                await avviaPrenotazione(codiceMezzo, f(ora), f(scad), true);
+                let oraLocale = new Date();
+                let scadenzaLocale = new Date(Date.now() + 60 * 60 * 1000);
+                
+                const formattaConTimezone = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${tzOffset}`;
+                };
+                
+                await avviaPrenotazione(codiceMezzo, formattaConTimezone(oraLocale), formattaConTimezone(scadenzaLocale), true);
             }
         }
 
-        async function avviaPrenotazione(codiceMezzo, dataInizio, dataFine, istantanea) {
+        async function avviaPrenotazione(codiceMezzo, dataInizio, dataFine, esecuzioneIstantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                alert("Devi effettuare il login.");
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            if (!confirm("Vuoi prenotare il veicolo " + codiceMezzo + " per garantirne la disponibilità?")) return;
+
             try {
-                const { error } = await supabaseClient.from("prenotazioni").insert([{ 
-                    utente_id: user.id, veicolo_id: codiceMezzo, data_inizio_prevista: dataInizio, 
-                    data_fine_prevista: dataFine, tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata' 
-                }]);
-                if (error) throw error;
-                if (istantanea) await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codiceMezzo);
-                alert("Prenotazione effettuata!");
+                const { error: insertError } = await supabaseClient
+                    .from("prenotazioni")
+                    .insert([{ 
+                        utente_id: user.id, 
+                        veicolo_id: codiceMezzo, 
+                        data_inizio_prevista: dataInizio,
+                        data_fine_prevista: dataFine,
+                        tipo_prenotazione: esecuzioneIstantanea ? 'Istantanea' : 'Programmata'
+                    }]);
+                if (insertError) throw insertError;
+
+                if (esecuzioneIstantanea) {
+                    await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codiceMezzo);
+                }
+
+                alert("Veicolo prenotato con successo!");
                 window.location.href = "mie-prenotazioni.html";
-            } catch (err) { alert("Errore: " + err.message); }
+            } catch (err) {
+                alert("Errore durante la prenotazione: " + err.message);
+            }
         }
 
-        async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
+        async function logout() { 
+            await supabaseClient.auth.signOut(); 
+            window.location.href = "login-user.html"; 
+        }
     </script>
 </body>
 </html>
