@@ -40,6 +40,7 @@
         <div class="nav-menu">
             <span id="saldo-display" style="color: var(--primary-orange); font-weight: bold; font-size: 14px;"></span>
             <a href="wallet.html" class="nav-item">💳 Wallet</a>
+            <a href="mie-prenotazioni.html" class="nav-item">📅 Prenotazioni</a>
             <a href="noleggio-attivo.html" class="nav-item">🚗 Noleggio</a>
             <a href="segnalazione.html" class="nav-item">⚠️ Segnalazioni</a>
             <a href="#" class="nav-item" onclick="logout()">🚪 Logout</a>
@@ -136,7 +137,7 @@
             });
         }
 
-        // Funzione FILTRATA (Aggiornata per supportare la ricerca temporale flessibile)
+        // Funzione FILTRATA (Punta alla nuova tabella 'prenotazioni' con blocco preventivo di 30 minuti)
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
@@ -145,22 +146,24 @@
             
             let veicoliOccupati = [];
 
-            // Se l'utente imposta i filtri di data e orario, escludiamo i veicoli occupati in quel lasso di tempo
+            // Applica la logica di sovrapposizione temporale estesa
             if (filtroInizio && filtroFine) {
-                const { data: noleggiSovrapposti } = await supabaseClient
-                    .from("noleggi")
-                    .select("veicolo_id")
-                    .in("stato", ["Attivo", "Prenotato", "In Pausa"])
-                    .lt("data_inizio", new Date(filtroFine).toISOString())
-                    .gt("data_fine", new Date(filtroInizio).toISOString());
+                let inizioConAnticipo = new Date(filtroInizio);
+                inizioConAnticipo.setMinutes(inizioConAnticipo.getMinutes() - 30); // 30 min di blocco preventivo
 
-                if (noleggiSovrapposti) {
-                    veicoliOccupati = noleggiSovrapposti.map(n => n.veicolo_id);
+                const { data: prenotazioniSovrapposte } = await supabaseClient
+                    .from("prenotazioni")
+                    .select("veicolo_id")
+                    .lt("data_inizio_prevista", new Date(filtroFine).toISOString())
+                    .gt("data_fine_prevista", inizioConAnticipo.toISOString());
+
+                if (prenotazioniSovrapposte) {
+                    veicoliOccupati = prenotazioniSovrapposte.map(p => p.veicolo_id);
                 }
             }
             
-            // Carica tutti i veicoli liberi nello stato attuale o non prenotati
-            let query = supabaseClient.from("veicoli").select("*").in("stato", ["Disponibile"]);
+            // Carica tutti i veicoli liberi nello stato attuale o non prenotati istantaneamente
+            let query = supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
             
             if (tipoSelezionato !== "Tutti") {
                 query = query.eq("tipo", tipoSelezionato);
@@ -171,7 +174,6 @@
             div.innerHTML = "";
             
             veicoli?.forEach(v => {
-                // Se stiamo usando il filtro temporale e questo veicolo specifico risulta occupato, lo saltiamo
                 if (veicoliOccupati.includes(v.codice)) return;
 
                 div.innerHTML += `
@@ -179,10 +181,10 @@
                         <strong>${v.nome}</strong><br>
                         Batteria: ${v.batteria}%<br>
                         <button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button>
-                        <button class="btn-reserve" onclick="avviaPrenotazione('${v.codice}')">Prenota Veicolo</button>
+                        <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota Veicolo</button>
                     </div>`;
                 if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(`<b>${v.nome}</b><br><button onclick="avviaPrenotazione('${v.codice}')" style="background:#2196F3;color:white;border:none;padding:5px;cursor:pointer;margin-top:5px;border-radius:4px;width:100%;">Prenota</button>`);
+                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(`<b>${v.nome}</b><br><button onclick="gestisciPrenotazionePulsante('${v.codice}')" style="background:#2196F3;color:white;border:none;padding:5px;cursor:pointer;margin-top:5px;border-radius:4px;width:100%;">Prenota</button>`);
                 }
             });
         }
@@ -221,8 +223,19 @@
             }
         }
 
-        // NUOVA FEATURE: Prenotazione anticipata/istantanea del veicolo
-        async function avviaPrenotazione(codiceMezzo) {
+        // Calcola e smista i dati di tempo inseriti prima del salvataggio
+        async function gestisciPrenotazionePulsante(codiceMezzo) {
+            const filtroInizio = document.getElementById("filtro-inizio").value;
+            const filtroFine = document.getElementById("filtro-fine").value;
+
+            let dataInizio = filtroInizio ? new Date(filtroInizio) : new Date();
+            let dataFine = filtroFine ? new Date(filtroFine) : new Date(Date.now() + 60 * 60 * 1000); // 1 ora di default per le istantanee
+
+            await avviaPrenotazione(codiceMezzo, dataInizio.toISOString(), dataFine.toISOString(), !filtroInizio);
+        }
+
+        // Salva i dati direttamente sulla nuova tabella pulita 'prenotazioni'
+        async function avviaPrenotazione(codiceMezzo, dataInizio, dataFine, esecuzioneIstantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
                 alert("Devi effettuare il login.");
@@ -233,26 +246,24 @@
             if (!confirm("Vuoi prenotare il veicolo " + codiceMezzo + " per garantirne la disponibilità?")) return;
 
             try {
-                // Inserisce la prenotazione nella tabella noleggi con stato 'Prenotato'
                 const { error: insertError } = await supabaseClient
-                    .from("noleggi")
+                    .from("prenotazioni")
                     .insert([{ 
                         utente_id: user.id, 
                         veicolo_id: codiceMezzo, 
-                        stato: "Prenotato", 
-                        data_inizio: new Date().toISOString() 
+                        data_inizio_prevista: dataInizio,
+                        data_fine_prevista: dataFine,
+                        tipo_prenotazione: esecuzioneIstantanea ? 'Istantanea' : 'Programmata'
                     }]);
                 if (insertError) throw insertError;
 
-                // Modifica lo stato del veicolo in 'Prenotato'
-                const { error: updateError } = await supabaseClient
-                    .from("veicoli")
-                    .update({ stato: "Prenotato" })
-                    .eq("codice", codiceMezzo);
-                if (updateError) throw updateError;
+                // Se la prenotazione è istantanea, blocca subito lo stato globale del veicolo
+                if (esecuzioneIstantanea) {
+                    await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codiceMezzo);
+                }
 
                 alert("Veicolo prenotato con successo!");
-                window.location.href = "noleggio-attivo.html";
+                window.location.href = "mie-prenotazioni.html";
             } catch (err) {
                 alert("Errore durante la prenotazione: " + err.message);
             }
