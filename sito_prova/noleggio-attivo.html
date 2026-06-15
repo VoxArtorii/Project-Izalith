@@ -304,16 +304,33 @@
                 return;
             }
 
-            const { data: noleggio, error } = await supabaseClient
+            const { data: noleggi, error } = await supabaseClient
                 .from("noleggi")
                 .select("*")
                 .eq("utente_id", user.id)
                 .in("stato", ["Attivo", "In Pausa"])
-                .single();
+                .order("data_inizio", { ascending: false })
+                .limit(1);
 
-            if (error || !noleggio) {
+            if (error) {
+                console.error("Errore caricamento noleggio:", error);
+
+                document.getElementById("content").innerHTML = `
+                    <h3>Errore nel caricamento del noleggio</h3>
+                    <p style="color:#aaa; font-size:13px;">${error.message}</p>
+                    <a href="dashboard.html" style="color:white;">Torna alla mappa</a>
+                `;
+                return;
+            }
+
+            const noleggio = noleggi && noleggi.length > 0 ? noleggi[0] : null;
+
+            if (!noleggio) {
                 document.getElementById("content").innerHTML = `
                     <h3>Nessun noleggio attivo</h3>
+                    <p style="color:#aaa; font-size:13px;">
+                        Non risulta nessun noleggio attivo associato al tuo utente.
+                    </p>
                     <a href="dashboard.html" style="color:white;">Torna alla mappa</a>
                 `;
                 return;
