@@ -143,24 +143,28 @@ async function caricaVeicoliFlotta() {
         if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
     });
 }
-        async function gestisciPrenotazionePulsante(codice) {
-            const startF = document.getElementById("filtro-inizio").value;
-            const endF = document.getElementById("filtro-fine").value;
-            
-            const getTzOffset = () => {
-                const o = new Date().getTimezoneOffset();
-                return (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0');
-            };
-            const tz = getTzOffset();
-            
-            if (startF && endF) {
-                await avviaPrenotazione(codice, `${startF}:00${tz}`, `${endF}:00${tz}`, false);
-            } else {
-                let d = new Date(), s = new Date(d.getTime() + 3600000);
-                const f = (x) => x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0') + 'T' + String(x.getHours()).padStart(2,'0') + ':' + String(x.getMinutes()).padStart(2,'0') + ':00' + tz;
-                await avviaPrenotazione(codice, f(d), f(s), true);
-            }
-        }
+async function gestisciPrenotazionePulsante(codice) {
+    const startF = document.getElementById("filtro-inizio").value; // Es: 2026-06-15T22:10
+    const endF = document.getElementById("filtro-fine").value;     // Es: 2026-06-15T22:15
+    
+    if (!startF || !endF) {
+        alert("Seleziona data e orario nel filtro!");
+        return;
+    }
+
+    // Aggiungiamo i secondi se mancano e il formato timezone
+    const getTzOffset = () => {
+        const o = new Date().getTimezoneOffset();
+        return (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0');
+    };
+    const tz = getTzOffset();
+    
+    // Invia la stringa completa: anno-mese-giorno T ora:minuti :00 +offset
+    const inizioCompleto = `${startF}:00${tz}`;
+    const fineCompleto = `${endF}:00${tz}`;
+    
+    await avviaPrenotazione(codice, inizioCompleto, fineCompleto, false);
+}
 
         async function avviaPrenotazione(codice, inizio, fine, istantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
