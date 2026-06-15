@@ -137,7 +137,7 @@
             });
         }
 
-        // Funzione FILTRATA (Punta alla nuova tabella 'prenotazioni' con blocco preventivo di 30 minuti)
+        // Funzione FILTRATA (Aggiornata per includere i veicoli con prenotazioni programmate future)
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
@@ -146,23 +146,52 @@
             
             let veicoliOccupati = [];
 
-            // Applica la logica di sovrapposizione temporale estesa
+            // Caso 1: L'utente usa i filtri di ricerca oraria sulla barra laterale
             if (filtroInizio && filtroFine) {
-                let inizioConAnticipo = new Date(filtroInizio);
-                inizioConAnticipo.setMinutes(inizioConAnticipo.getMinutes() - 30); // 30 min di blocco preventivo
+                let inizioRichiesto = new Date(filtroInizio);
+                let fineRichiesta = new Date(filtroFine);
+
+                // Calcolo finestra di anticipo per la sovrapposizione (30 minuti prima)
+                let inizioConAnticipo = new Date(inizioRichiesto);
+                inizioConAnticipo.setMinutes(inizioConAnticipo.getMinutes() - 30);
 
                 const { data: prenotazioniSovrapposte } = await supabaseClient
                     .from("prenotazioni")
-                    .select("veicolo_id")
-                    .lt("data_inizio_prevista", new Date(filtroFine).toISOString())
-                    .gt("data_fine_prevista", inizioConAnticipo.toISOString());
+                    .select("veicolo_id, data_inizio_prevista, data_fine_prevista");
 
                 if (prenotazioniSovrapposte) {
-                    veicoliOccupati = prenotazioniSovrapposte.map(p => p.veicolo_id);
+                    prenotazioniSovrapposte.forEach(p => {
+                        let pInizio = new Date(p.data_inizio_prevista);
+                        let pFine = new Date(p.data_fine_prevista);
+                        
+                        // Algoritmo di intersezione temporale con blocco di 30 min applicato alle prenotazioni esistenti
+                        if (inizioRichiesto < pFine && fineRichiesta > new Date(pInizio.getTime() - 30 * 60000)) {
+                            veicoliOccupati.push(p.veicolo_id);
+                        }
+                    });
+                }
+            } else {
+                // Caso 2: Visualizzazione della mappa standard in tempo reale
+                // Nascondiamo solo i veicoli che hanno una prenotazione imminente che inizia entro i prossimi 30 minuti
+                const { data: prenotazioniImminenti } = await supabaseClient
+                    .from("prenotazioni")
+                    .select("veicolo_id, data_inizio_prevista");
+
+                if (prenotazioniImminenti) {
+                    let adesso = new Date();
+                    prenotazioniImminenti.forEach(p => {
+                        let pInizio = new Date(p.data_inizio_prevista);
+                        let diffMinuti = (pInizio - adesso) / (1000 * 60);
+                        
+                        // Se la prenotazione inizia tra meno di 30 minuti, il mezzo scompare dalla visualizzazione immediata
+                        if (diffMinuti > 0 && diffMinuti <= 30) {
+                            veicoliOccupati.push(p.veicolo_id);
+                        }
+                    });
                 }
             }
             
-            // Carica tutti i veicoli liberi nello stato attuale o non prenotati istantaneamente
+            // Carica tutti i veicoli che non sono attualmente in uso fisico ("In uso" o "Prenotato" istantaneamente)
             let query = supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
             
             if (tipoSelezionato !== "Tutti") {
@@ -257,7 +286,7 @@
                     }]);
                 if (insertError) throw insertError;
 
-                // Se la prenotazione è istantanea, blocca subito lo stato globale del veicolo
+                // Se la prenotazione è immediata/istantanea (senza filtri), blocca subito il veicolo
                 if (esecuzioneIstantanea) {
                     await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codiceMezzo);
                 }
