@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Mie Prenotazioni - Izalith</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary-orange: #ff5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; align-items: center; padding: 30px; min-height: 100vh; }
+        .container { width: 100%; max-width: 500px; }
+        .nav-back { color: var(--primary-orange); text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; font-size: 14px; }
+        .nav-back:hover { text-decoration: underline; }
+        h2 { margin-bottom: 20px; font-weight: 600; }
+        .card-prenotazione { background: var(--surface-card); padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color); }
+        .card-prenotazione h3 { font-size: 18px; margin-bottom: 5px; }
+        .badge-tipo { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: bold; margin-bottom: 15px; }
+        .badge-istantanea { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+        .badge-programmata { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        label { font-size: 12px; color: var(--text-muted); display: block; margin-top: 10px; font-weight: 600; }
+        .input-inline { width: 100%; background: #121212; border: 1px solid var(--border-color); color: white; padding: 8px; border-radius: 6px; margin-top: 4px; font-size: 14px; }
+        .input-inline:focus { border-color: var(--primary-orange); outline: none; }
+        .row-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-action { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: opacity 0.2s; }
+        .btn-action:hover { opacity: 0.9; }
+        .btn-edit { background: #FF9800; color: white; }
+        .btn-delete { background: #f44336; color: white; }
+        .btn-start { background: var(--primary-orange); color: white; width: 100%; margin-top: 15px; padding: 12px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="dashboard.html" class="nav-back">← Torna alla Dashboard</a>
+        <h2>Le tue Prenotazioni</h2>
+        <div id="lista-prenotazioni">Caricamento in corso...</div>
+    </div>
+
+    <script>
+        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        let userId = null;
+
+        async function init() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) { window.location.href = "login-user.html"; return; }
+            userId = user.id;
+            caricaPrenotazioni();
+        }
+
+        async function caricaPrenotazioni() {
+            const { data: prenotazioni, error } = await supabaseClient
+                .from("prenotazioni")
+                .select("*")
+                .eq("utente_id", userId)
+                .order("data_inizio_prevista", { ascending: true });
+
+            const div = document.getElementById("lista-prenotazioni");
+            if (error || !prenotazioni || prenotazioni.length === 0) {
+                div.innerHTML = "<p style='color: var(--text-muted); text-align: center; margin-top: 20px;'>Non hai prenotazioni attive o pianificate.</p>";
+                return;
+            }
+
+            div.innerHTML = "";
+            prenotazioni.forEach(p => {
+                let dataInizio = new Date(p.data_inizio_prevista);
+                let adesso = new Date();
+                let diffMinuti = (dataInizio - adesso) / (1000 * 60);
+
+                // Regola dei 30 minuti o prenotazione istantanea attiva subito
+                let puoUsufruire = diffMinuti <= 30 || p.tipo_prenotazione === 'Istantanea';
+
+                let dataInizioFormattata = p.data_inizio_prevista.substring(0, 16);
+                let dataFineFormattata = p.data_fine_prevista.substring(0, 16);
+                let badgeClass = p.tipo_prenotazione === 'Istantanea' ? 'badge-istantanea' : 'badge-programmata';
+
+                div.innerHTML += `
+                    <div class="card-prenotazione" id="p-${p.id}">
+                        <h3>Veicolo: ${p.veicolo_id}</h3>
+                        <span class="badge-tipo ${badgeClass}">${p.tipo_prenotazione.toUpperCase()}</span>
+                        
+                        <label>INIZIO PREVISTO</label>
+                        <input type="datetime-local" class="input-inline" id="edit-inizio-${p.id}" value="${dataInizioFormattata}">
+                        
+                        <label>FINE PREVISTA</label>
+                        <input type="datetime-local" class="input-inline" id="edit-fine-${p.id}" value="${dataFineFormattata}">
+                        
+                        <div class="row-actions">
+                            <button class="btn-action btn-edit" onclick="modificaPrenotazione(${p.id})">Modifica</button>
+                            <button class="btn-action btn-delete" onclick="cancellaPrenotazione(${p.id}, '${p.veicolo_id}', '${p.tipo_prenotazione}')">Elimina</button>
+                        </div>
+
+                        ${puoUsufruire 
+                            ? `<button class="btn-start" onclick="convertiInNoleggio(${p.id}, '${p.veicolo_id}')">SBLOCCA E INIZIA VIAGGIO</button>`
+                            : `<button class="btn-start" style="background:#444; color:#888; cursor:not-allowed;" disabled>Disponibile tra ${Math.round(diffMinuti - 30)} min</button>`
+                        }
+                    </div>
+                `;
+            });
+        }
+
+        async function modificaPrenotazione(id) {
+            const nuovoInizio = document.getElementById(`edit-inizio-${id}`).value;
+            const nuovaFine = document.getElementById(`edit-fine-${id}`).value;
+
+            if (!nuovoInizio || !nuovaFine) { alert("Inserisci date valide."); return; }
+
+            try {
+                const { error } = await supabaseClient.from("prenotazioni")
+                    .update({ 
+                        data_inizio_prevista: new Date(nuovoInizio).toISOString(), 
+                        data_fine_prevista: new Date(nuovaFine).toISOString() 
+                    }).eq("id", id);
+
+                if (error) throw error;
+                alert("Prenotazione modificata con successo!");
+                caricaPrenotazioni();
+            } catch (err) { alert("Errore durante la modifica: " + err.message); }
+        }
+
+        async function cancellaPrenotazione(id, veicoloId, tipo) {
+            if (!confirm("Vuoi davvero cancellare questa prenotazione?")) return;
+
+            try {
+                const { error } = await supabaseClient.from("prenotazioni").delete().eq("id", id);
+                if (error) throw error;
+
+                if (tipo === 'Istantanea') {
+                    await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", veicoloId);
+                }
+
+                alert("Prenotazione rimossa.");
+                caricaPrenotazioni();
+            } catch (err) { alert("Errore durante la cancellazione: " + err.message); }
+        }
+
+        async function convertiInNoleggio(prenotazioneId, veicoloId) {
+            try {
+                const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
+                    utente_id: userId,
+                    veicolo_id: veicoloId,
+                    stato: "Attivo",
+                    data_inizio: new Date().toISOString()
+                }]);
+                if (rentErr) throw rentErr;
+
+                await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", veicoloId);
+                await supabaseClient.from("prenotazioni").delete().eq("id", prenotazioneId);
+
+                alert("Sblocco effettuato! Verrai reindirizzato al pannello di viaggio.");
+                window.location.href = "noleggio-attivo.html";
+            } catch (err) { alert("Errore sblocco: " + err.message); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
