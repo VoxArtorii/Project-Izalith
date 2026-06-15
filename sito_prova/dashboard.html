@@ -307,7 +307,9 @@
     <div class="main-workspace">
         <div class="sidebar-fleet">
             <div class="filter-section">
-                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">RICERCA DISPONIBILITÀ</div>
+                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">
+                    RICERCA DISPONIBILITÀ
+                </div>
 
                 <label>INIZIO PREVISTO</label>
                 <input type="datetime-local" id="filtro-inizio">
@@ -404,44 +406,6 @@
         </div>
     </div>
 
-    <div id="modal-valutazione-prenotazione" class="modal-overlay">
-        <div class="modal-card">
-            <h3>Valutazione stato veicolo</h3>
-
-            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.4;">
-                Prima dell’inizio del noleggio, indica lo stato del veicolo prenotato.
-            </p>
-
-            <div class="vehicle-detail-row">
-                <span>Veicolo</span>
-                <span id="valutazione-nome-veicolo">-</span>
-            </div>
-
-            <div class="vehicle-detail-row">
-                <span>Batteria</span>
-                <span id="valutazione-batteria-veicolo">-</span>
-            </div>
-
-            <div class="vehicle-evaluation-box">
-                <label>STATO GENERALE</label>
-                <select id="valutazione-stato">
-                    <option value="">Seleziona stato</option>
-                    <option value="Ottimo">Ottimo</option>
-                    <option value="Buono">Buono</option>
-                    <option value="Lievi danni">Lievi danni</option>
-                    <option value="Danni evidenti">Danni evidenti</option>
-                </select>
-
-                <label>NOTE SUL VEICOLO</label>
-                <textarea id="valutazione-note" placeholder="Scrivi eventuali graffi, ammaccature, problemi o anomalie..."></textarea>
-
-                <button class="btn-save-evaluation" onclick="confermaValutazionePrenotazione()">
-                    CONFERMA VALUTAZIONE
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
         const supabaseClient = supabase.createClient(
             "https://iqadvwrvmecpetuqpysn.supabase.co",
@@ -462,7 +426,6 @@
         const geojsonGroup = L.layerGroup().addTo(map);
 
         let veicoloSelezionato = null;
-        let prenotazioneDaValutare = null;
 
         window.onload = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -710,16 +673,14 @@
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
-            const { data: noleggioCreato, error: rentErr } = await supabaseClient
+            const { error: rentErr } = await supabaseClient
                 .from("noleggi")
                 .insert([{
                     utente_id: user.id,
                     veicolo_id: veicoloSelezionato.codice,
                     stato: "Attivo",
                     data_inizio: dataInizio
-                }])
-                .select()
-                .single();
+                }]);
 
             if (rentErr) {
                 alert("Errore durante l'avvio del noleggio: " + rentErr.message);
@@ -737,7 +698,6 @@
             }
 
             localStorage.setItem("noleggio_corrente_info", JSON.stringify({
-                id: noleggioCreato?.id || null,
                 veicolo_id: veicoloSelezionato.codice,
                 nome: veicoloSelezionato.nome,
                 tipo: veicoloSelezionato.tipo,
@@ -777,13 +737,15 @@
                 return;
             }
 
-            const { error } = await supabaseClient.from("prenotazioni").insert([{
-                utente_id: user.id,
-                veicolo_id: codice,
-                data_inizio_prevista: inizio,
-                data_fine_prevista: fine,
-                tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata'
-            }]);
+            const { error } = await supabaseClient
+                .from("prenotazioni")
+                .insert([{
+                    utente_id: user.id,
+                    veicolo_id: codice,
+                    data_inizio_prevista: inizio,
+                    data_fine_prevista: fine,
+                    tipo_prenotazione: istantanea ? "Istantanea" : "Programmata"
+                }]);
 
             if (error) {
                 alert("Errore durante la prenotazione: " + error.message);
@@ -797,62 +759,7 @@
                     .eq("codice", codice);
             }
 
-            const { data: veicolo } = await supabaseClient
-                .from("veicoli")
-                .select("*")
-                .eq("codice", codice)
-                .single();
-
-            prenotazioneDaValutare = {
-                utente_id: user.id,
-                veicolo_id: codice,
-                data_inizio_prevista: inizio,
-                data_fine_prevista: fine,
-                tipo_prenotazione: istantanea ? "Istantanea" : "Programmata",
-                veicolo: veicolo
-            };
-
-            mostraSchermataValutazionePrenotazione();
-        }
-
-        function mostraSchermataValutazionePrenotazione() {
-            if (!prenotazioneDaValutare || !prenotazioneDaValutare.veicolo) {
-                alert("Prenotazione effettuata, ma impossibile caricare lo stato del veicolo.");
-                window.location.href = "mie-prenotazioni.html";
-                return;
-            }
-
-            const veicolo = prenotazioneDaValutare.veicolo;
-
-            document.getElementById("valutazione-nome-veicolo").innerText = veicolo.nome || veicolo.codice;
-            document.getElementById("valutazione-batteria-veicolo").innerText = `${veicolo.batteria || 0}%`;
-
-            document.getElementById("valutazione-stato").value = "";
-            document.getElementById("valutazione-note").value = "";
-
-            document.getElementById("modal-valutazione-prenotazione").style.display = "flex";
-        }
-
-        function confermaValutazionePrenotazione() {
-            const stato = document.getElementById("valutazione-stato").value;
-            const note = document.getElementById("valutazione-note").value.trim();
-
-            if (!stato) {
-                alert("Seleziona lo stato generale del veicolo.");
-                return;
-            }
-
-            const valutazione = {
-                veicolo_id: prenotazioneDaValutare.veicolo_id,
-                nome_veicolo: prenotazioneDaValutare.veicolo?.nome || prenotazioneDaValutare.veicolo_id,
-                stato_generale: stato,
-                note: note,
-                data_valutazione: new Date().toISOString()
-            };
-
-            localStorage.setItem("valutazione_stato_veicolo_prenotazione", JSON.stringify(valutazione));
-
-            alert("Valutazione salvata. Prenotazione effettuata correttamente.");
+            alert("Prenotazione effettuata!");
             window.location.href = "mie-prenotazioni.html";
         }
 
