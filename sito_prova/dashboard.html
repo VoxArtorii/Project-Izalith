@@ -366,6 +366,44 @@
         </div>
     </div>
 
+    <div id="modal-valutazione-noleggio" class="modal-overlay">
+        <div class="modal-card">
+            <h3>Stato del veicolo</h3>
+
+            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.4;">
+                Prima di iniziare il noleggio, indica in che stato hai trovato il veicolo.
+            </p>
+
+            <div class="vehicle-detail-row">
+                <span>Veicolo</span>
+                <span id="noleggio-valutazione-nome">-</span>
+            </div>
+
+            <div class="vehicle-detail-row">
+                <span>Batteria</span>
+                <span id="noleggio-valutazione-batteria">-</span>
+            </div>
+
+            <div class="vehicle-evaluation-box">
+                <label>STATO GENERALE</label>
+                <select id="noleggio-valutazione-stato">
+                    <option value="">Seleziona stato</option>
+                    <option value="Ottimo">Ottimo</option>
+                    <option value="Buono">Buono</option>
+                    <option value="Lievi danni">Lievi danni</option>
+                    <option value="Danni evidenti">Danni evidenti</option>
+                </select>
+
+                <label>NOTE SUL VEICOLO</label>
+                <textarea id="noleggio-valutazione-note" placeholder="Scrivi eventuali graffi, ammaccature, problemi o anomalie..."></textarea>
+
+                <button class="btn-save-evaluation" onclick="confermaValutazioneEAvviaNoleggio()">
+                    CONFERMA E INIZIA NOLEGGIO
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-valutazione-prenotazione" class="modal-overlay">
         <div class="modal-card">
             <h3>Valutazione stato veicolo</h3>
@@ -637,6 +675,30 @@
                 return;
             }
 
+            document.getElementById("modal-conferma-veicolo").style.display = "none";
+
+            document.getElementById("noleggio-valutazione-nome").innerText = veicoloSelezionato.nome || veicoloSelezionato.codice;
+            document.getElementById("noleggio-valutazione-batteria").innerText = `${veicoloSelezionato.batteria || 0}%`;
+            document.getElementById("noleggio-valutazione-stato").value = "";
+            document.getElementById("noleggio-valutazione-note").value = "";
+
+            document.getElementById("modal-valutazione-noleggio").style.display = "flex";
+        }
+
+        async function confermaValutazioneEAvviaNoleggio() {
+            const statoValutato = document.getElementById("noleggio-valutazione-stato").value;
+            const noteValutazione = document.getElementById("noleggio-valutazione-note").value.trim();
+
+            if (!statoValutato) {
+                alert("Seleziona lo stato generale del veicolo.");
+                return;
+            }
+
+            if (!veicoloSelezionato) {
+                alert("Nessun veicolo selezionato.");
+                return;
+            }
+
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (!user) {
@@ -644,15 +706,20 @@
                 return;
             }
 
+            const statoCorrente = veicoloSelezionato.stato || "Disponibile";
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
-            const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
-                utente_id: user.id,
-                veicolo_id: veicoloSelezionato.codice,
-                stato: "Attivo",
-                data_inizio: dataInizio
-            }]);
+            const { data: noleggioCreato, error: rentErr } = await supabaseClient
+                .from("noleggi")
+                .insert([{
+                    utente_id: user.id,
+                    veicolo_id: veicoloSelezionato.codice,
+                    stato: "Attivo",
+                    data_inizio: dataInizio
+                }])
+                .select()
+                .single();
 
             if (rentErr) {
                 alert("Errore durante l'avvio del noleggio: " + rentErr.message);
@@ -670,17 +737,23 @@
             }
 
             localStorage.setItem("noleggio_corrente_info", JSON.stringify({
+                id: noleggioCreato?.id || null,
                 veicolo_id: veicoloSelezionato.codice,
                 nome: veicoloSelezionato.nome,
                 tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
+                latitudine: veicoloSelezionato.latitudine,
+                longitudine: veicoloSelezionato.longitudine,
                 stato_iniziale: statoCorrente,
+                stato_trovato: statoValutato,
+                note_stato_trovato: noteValutazione,
                 costo_minuto: costoMinuto,
                 secondi_motore: 0,
                 prezzo_corrente: 0,
                 data_inizio: dataInizio
             }));
 
+            document.getElementById("modal-valutazione-noleggio").style.display = "none";
             window.location.href = "noleggio-attivo.html";
         }
 
