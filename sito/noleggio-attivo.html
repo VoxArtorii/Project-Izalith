@@ -10,252 +10,801 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-
     <style>
-        :root { --primary-orange: #ff5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Layout a due colonne: Sidebar comandi + Area Mappa Meticolosa */
-        .sidebar-panel { width: 400px; background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .map-container { flex: 1; height: 100%; }
-        #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
-
-        /* Stili Pulsanti */
-        .btn-end { background: #f44336; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-toggle { background: #4CAF50; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-search { background: #2196F3; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-charge { background: #FF9800; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-stop-charge { background: #9e9e9e; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; }
-        .btn-pause { background: #FFEB3B; color: black; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-resume { background: #4CAF50; color: white; border: none; padding: 13px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; }
-        .btn-route { background: var(--primary-orange); color: white; border: none; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 8px; }
-
-        /* Input Destinazione Navigatore */
-        .route-box { background: #121212; border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-top: 5px; }
-        .route-box input { width: 100%; padding: 10px; background: #222; border: 1px solid var(--border-color); color: white; border-radius: 4px; margin-top: 5px; }
-        
-        .text-paused { color: #FFEB3B; font-weight: bold; }
-        .text-charging { color: #00BCD4; font-weight: bold; }
-        .popup-search { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; border-left: 5px solid #2196F3; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; font-weight: bold; }
-        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+        :root {
+            --primary-orange: #ff5722;
+            --dark-bg: #121212;
+            --surface-card: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --border-color: #2C2C2C;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: var(--dark-bg);
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar-panel {
+            width: 400px;
+            background: var(--surface-card);
+            border-right: 1px solid var(--border-color);
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .map-container {
+            flex: 1;
+            height: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        /* Dark mode solo sulle tile della mappa, non sui controlli */
+        .leaflet-tile-pane {
+            filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2);
+        }
+        .leaflet-control-container {
+            filter: none !important;
+        }
+        /* Pannello indicazioni del navigatore */
+        .leaflet-routing-container {
+            background: #ffffff !important;
+            color: #111111 !important;
+            border: 2px solid #ff5722 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.45) !important;
+            max-height: 70vh !important;
+            overflow-y: auto !important;
+            padding: 8px !important;
+            font-family: 'Segoe UI', sans-serif !important;
+        }
+        .leaflet-routing-container h2,
+        .leaflet-routing-container h3,
+        .leaflet-routing-container div,
+        .leaflet-routing-container span,
+        .leaflet-routing-container a {
+            color: #111111 !important;
+        }
+        .leaflet-routing-alt,
+        .leaflet-routing-alt-minimized,
+        .leaflet-routing-alt table,
+        .leaflet-routing-alt tbody,
+        .leaflet-routing-alt tr,
+        .leaflet-routing-alt td {
+            background: #ffffff !important;
+            color: #111111 !important;
+        }
+        .leaflet-routing-alt tr {
+            border-bottom: 1px solid #dddddd !important;
+        }
+        .leaflet-routing-alt tr:hover,
+        .leaflet-routing-alt tr:hover td {
+            background: #f2f2f2 !important;
+            color: #000000 !important;
+        }
+        .leaflet-routing-icon {
+            filter: none !important;
+        }
+        .leaflet-routing-collapse-btn {
+            color: #111111 !important;
+            background: #eeeeee !important;
+            border-radius: 4px !important;
+        }
+        .btn-end {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-toggle {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-search {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-charge {
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-stop-charge {
+            background: #9e9e9e;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .btn-pause {
+            background: #FFEB3B;
+            color: black;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-resume {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 13px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .btn-route {
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .btn-pay {
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .route-box,
+        .payment-box {
+            background: #121212;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+        .route-box input {
+            width: 100%;
+            padding: 10px;
+            background: #222;
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .rental-stats {
+            background: #121212;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 12px 0;
+        }
+        .rental-stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            gap: 10px;
+        }
+        .rental-stat-row:last-child {
+            border-bottom: none;
+        }
+        .rental-stat-row span:first-child {
+            color: var(--text-muted);
+        }
+        .rental-stat-row span:last-child {
+            font-weight: bold;
+            color: var(--primary-orange);
+            text-align: right;
+        }
+        .text-paused {
+            color: #FFEB3B;
+            font-weight: bold;
+        }
+        .text-charging {
+            color: #00BCD4;
+            font-weight: bold;
+        }
+        .popup-search {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #323232;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 8px;
+            border-left: 5px solid #2196F3;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 1000;
+            font-weight: bold;
+        }
+        .custom-orange-marker {
+            background-color: #FF5722;
+            border: 2px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+        }
     </style>
 </head>
 <body>
-
     <div id="popup-ricerca" class="popup-search">Il suo veicolo sta suonando</div>
-
     <div class="sidebar-panel" id="content">
         <h3>Caricamento...</h3>
     </div>
-
     <div class="map-container">
         <div id="map"></div>
     </div>
-
     <script>
-        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
-        
+        const supabaseClient = supabase.createClient(
+            "https://iqadvwrvmecpetuqpysn.supabase.co",
+            "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
+        );
         let map;
         let routingControl = null;
         let veicoloMarker = null;
         let motoreAcceso = false;
         let areeSostaList = [];
-        let datiNoleggioCorrente = null; 
-        const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
-
+        let datiNoleggioCorrente = null;
+        let timerNoleggio = null;
+        let costoMinutoCorrente = 5.00;
+        let secondiMotore = 0;
+        let pagamentoDaEffettuare = null;
+        const orangeIcon = L.divIcon({
+            className: 'custom-orange-marker',
+            iconSize: [20, 20],
+            iconAnchor: [10, 20],
+            popupAnchor: [0, -20]
+        });
         async function init() {
-            // Inizializza mappa Leaflet
             map = L.map('map').setView([41.1171, 16.8719], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-            // 1. Carica le aree di sosta autorizzate
-            const { data: aree } = await supabaseClient.from("aree_sosta").select("area");
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+                .addTo(map);
+            const { data: aree } = await supabaseClient
+                .from("aree_sosta")
+                .select("area");
             if (aree) {
                 areeSostaList = aree.map(a => typeof a.area === 'string' ? JSON.parse(a.area) : a.area);
-                console.log("📍 Aree sosta caricate:", areeSostaList.length);
             }
-
-            // 2. Carica il noleggio attivo per questo utente
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) { window.location.href = "login-user.html"; return; }
-
-            const { data: noleggio, error } = await supabaseClient.from("noleggi")
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+            const { data: noleggi, error } = await supabaseClient
+                .from("noleggi")
                 .select("*")
                 .eq("utente_id", user.id)
                 .in("stato", ["Attivo", "In Pausa"])
-                .single();
-            
-            if (error || !noleggio) {
-                document.getElementById("content").innerHTML = "<h3>Nessun noleggio attivo</h3><a href='dashboard.html' style='color:white;'>Torna alla mappa</a>";
+                .order("data_inizio", { ascending: false })
+                .limit(1);
+            if (error) {
+                console.error("Errore caricamento noleggio:", error);
+                document.getElementById("content").innerHTML = `
+                    <h3>Errore nel caricamento del noleggio</h3>
+                    <p style="color:#aaa; font-size:13px;">${error.message}</p>
+                    <a href="dashboard.html" style="color:white;">Torna alla mappa</a>
+                `;
                 return;
             }
-            
-            datiNoleggioCorrente = noleggio; 
-
-            // Disegna il marker del veicolo sulla mappa prendendo le coordinate reali dal database
+            const noleggio = noleggi && noleggi.length > 0 ? noleggi[0] : null;
+            if (!noleggio) {
+                document.getElementById("content").innerHTML = `
+                    <h3>Nessun noleggio attivo</h3>
+                    <a href="dashboard.html" style="color:white;">Torna alla mappa</a>
+                `;
+                return;
+            }
+            datiNoleggioCorrente = noleggio;
+            await inizializzaTariffaNoleggio();
+            caricaSecondiDaLocalStorage();
             await aggiornaMappaPosizioneVeicolo();
-
             if (datiNoleggioCorrente.stato === "In Pausa") {
                 mostraNoleggioInPausa();
             } else {
                 mostraNoleggioAttivo();
             }
         }
-
+        function calcolaTariffaMinutoDaTipo(tipo) {
+            const tipoNormalizzato = (tipo || "").toLowerCase();
+            if (tipoNormalizzato === "monopattino" || tipoNormalizzato === "monopattini") {
+                return 3.00;
+            }
+            if (tipoNormalizzato === "auto") {
+                return 7.00;
+            }
+            if (tipoNormalizzato === "scooter") {
+                return 5.00;
+            }
+            return 5.00;
+        }
+        async function inizializzaTariffaNoleggio() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            if (infoLocale.costo_minuto) {
+                costoMinutoCorrente = Number(infoLocale.costo_minuto);
+                return;
+            }
+            if (infoLocale.tipo) {
+                costoMinutoCorrente = calcolaTariffaMinutoDaTipo(infoLocale.tipo);
+                return;
+            }
+            const { data: veicolo } = await supabaseClient
+                .from("veicoli")
+                .select("tipo")
+                .eq("codice", datiNoleggioCorrente.veicolo_id)
+                .single();
+            costoMinutoCorrente = calcolaTariffaMinutoDaTipo(veicolo?.tipo);
+        }
+        function caricaSecondiDaLocalStorage() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            secondiMotore = Number(infoLocale.secondi_motore || 0);
+        }
+        function salvaDatiLocaliNoleggio() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            infoLocale.secondi_motore = secondiMotore;
+            infoLocale.prezzo_corrente = calcolaPrezzoAttuale();
+            infoLocale.costo_minuto = costoMinutoCorrente;
+            localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
+        }
+        function formattaTempoDaSecondi(secondiTotali) {
+            const ore = Math.floor(secondiTotali / 3600);
+            const minuti = Math.floor((secondiTotali % 3600) / 60);
+            const secondi = secondiTotali % 60;
+            return `${String(ore).padStart(2, "0")}.${String(minuti).padStart(2, "0")}.${String(secondi).padStart(2, "0")}`;
+        }
+        function calcolaPrezzoAttuale() {
+            const minutiConteggiati = secondiMotore / 60;
+            return minutiConteggiati * costoMinutoCorrente;
+        }
+        function aggiornaDisplayCronometroPrezzo() {
+            const timerEl = document.getElementById("timer-noleggio");
+            const prezzoEl = document.getElementById("prezzo-noleggio");
+            const tariffaEl = document.getElementById("tariffa-noleggio");
+            const prezzoAttuale = calcolaPrezzoAttuale();
+            if (timerEl) {
+                timerEl.innerText = formattaTempoDaSecondi(secondiMotore);
+            }
+            if (prezzoEl) {
+                prezzoEl.innerText = `${prezzoAttuale.toFixed(2)} €`;
+            }
+            if (tariffaEl) {
+                tariffaEl.innerText = `${costoMinutoCorrente.toFixed(2)} €/min`;
+            }
+            salvaDatiLocaliNoleggio();
+        }
+        function avviaCronometroMotore() {
+            if (timerNoleggio) {
+                return;
+            }
+            timerNoleggio = setInterval(() => {
+                secondiMotore++;
+                aggiornaDisplayCronometroPrezzo();
+            }, 1000);
+        }
+        function fermaCronometroMotore() {
+            if (timerNoleggio) {
+                clearInterval(timerNoleggio);
+                timerNoleggio = null;
+            }
+            aggiornaDisplayCronometroPrezzo();
+        }
         async function aggiornaMappaPosizioneVeicolo() {
-            const { data: v } = await supabaseClient.from("veicoli").select("latitudine, longitudine, nome").eq("codice", datiNoleggioCorrente.veicolo_id).single();
-            if (v && v.latitudine && v.longitudine) {
-                if (veicoloMarker) map.removeLayer(veicoloMarker);
-                veicoloMarker = L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(`Il tuo veicolo: ${v.nome}`).openPopup();
-                map.setView([v.latitudine, v.longitudine], 15);
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            let latitudine = infoLocale.latitudine;
+            let longitudine = infoLocale.longitudine;
+            let nome = infoLocale.nome || datiNoleggioCorrente.veicolo_id;
+            if (!latitudine || !longitudine) {
+                const { data: v } = await supabaseClient
+                    .from("veicoli")
+                    .select("latitudine, longitudine, nome")
+                    .eq("codice", datiNoleggioCorrente.veicolo_id)
+                    .single();
+                if (v) {
+                    latitudine = v.latitudine;
+                    longitudine = v.longitudine;
+                    nome = v.nome;
+                }
+            }
+            if (latitudine && longitudine) {
+                if (veicoloMarker) {
+                    map.removeLayer(veicoloMarker);
+                }
+                veicoloMarker = L.marker([latitudine, longitudine], { icon: orangeIcon })
+                    .addTo(map)
+                    .bindPopup(`Il tuo veicolo: ${nome}`)
+                    .openPopup();
+                map.setView([latitudine, longitudine], 15);
             }
         }
-
         function mostraNoleggioAttivo() {
+            const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+            const nomeVeicolo = infoLocale.nome || datiNoleggioCorrente.veicolo_id;
             document.getElementById("content").innerHTML = `
                 <h3>Noleggio in corso</h3>
+                <p style="color: var(--text-muted); font-size: 13px;">Veicolo: ${nomeVeicolo}</p>
                 <p style="color: var(--text-muted); font-size: 13px;">Codice Mezzo: ${datiNoleggioCorrente.veicolo_id}</p>
+                <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Cronometro motore</span>
+                        <span id="timer-noleggio">00.00.00</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Prezzo attuale</span>
+                        <span id="prezzo-noleggio">0.00 €</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Tariffa applicata</span>
+                        <span id="tariffa-noleggio">0.00 €/min</span>
+                    </div>
+                </div>
                 <hr style="border-color: var(--border-color); margin: 5px 0;">
-                
-                <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">${motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE"}</button>
+                <button id="btn-motore" class="btn-toggle" onclick="toggleMotore()">
+                    ${motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE"}
+                </button>
                 <button class="btn-search" onclick="ricercaVeicolo()">RICERCA IL MIO VEICOLO</button>
                 <button class="btn-charge" onclick="attivaRicarica()">RICARICA VEICOLO</button>
                 <button id="btn-pausa" class="btn-pause" onclick="mettiInPausa()">METTI IN PAUSA</button>
-                
                 <div class="route-box">
                     <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">🗺️ NAVIGATORE STRADALE</div>
                     <label style="font-size:11px; color:#aaa; display:block; margin-top:5px;">INSERISCI DESTINAZIONE</label>
                     <input type="text" id="destinazione-input" placeholder="Es: Via Sparano, Bari">
                     <button class="btn-route" onclick="calcolaPercorsoVeloce()">TROVA PERCORSO PIÙ VELOCE</button>
                 </div>
-
-                <button class="btn-end" onclick="terminaNoleggio('${datiNoleggioCorrente.veicolo_id}', ${datiNoleggioCorrente.id})">TERMINA NOLEGGIO</button>
+                <button class="btn-end" onclick="terminaNoleggio('${datiNoleggioCorrente.veicolo_id}', ${datiNoleggioCorrente.id})">
+                    TERMINA NOLEGGIO
+                </button>
             `;
             if (motoreAcceso) {
                 const btn = document.getElementById("btn-motore");
-                if (btn) btn.style.background = "#f44336";
+                if (btn) {
+                    btn.style.background = "#f44336";
+                }
             }
+            aggiornaDisplayCronometroPrezzo();
         }
-
-        // Calcolo del percorso stradale basato sulla posizione attuale del mezzo
         async function calcolaPercorsoVeloce() {
             const destinazioneTesto = document.getElementById("destinazione-input").value;
-            if (!destinazioneTesto) { alert("Inserisci una destinazione!"); return; }
-
-            // 1. Legge la posizione corrente aggiornata del veicolo dal database
-            const { data: v } = await supabaseClient.from("veicoli").select("latitudine, longitudine").eq("codice", datiNoleggioCorrente.veicolo_id).single();
-            if (!v || !v.latitudine || !v.longitudine) { alert("Impossibile rilevare la geolocalizzazione del veicolo."); return; }
-
-            // 2. Chiamata di Geocoding gratuita (Nominatim OpenStreetMap) per convertire l'indirizzo in Lat/Lng
+            if (!destinazioneTesto) {
+                alert("Inserisci una destinazione!");
+                return;
+            }
+            const { data: v } = await supabaseClient
+                .from("veicoli")
+                .select("latitudine, longitudine")
+                .eq("codice", datiNoleggioCorrente.veicolo_id)
+                .single();
+            if (!v || !v.latitudine || !v.longitudine) {
+                alert("Impossibile rilevare la geolocalizzazione del veicolo.");
+                return;
+            }
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destinazioneTesto)}`);
                 const result = await response.json();
-                if (result.length === 0) { alert("Indirizzo non trovato, sii più specifico."); return; }
-                
+                if (result.length === 0) {
+                    alert("Indirizzo non trovato, sii più specifico.");
+                    return;
+                }
                 const latDest = parseFloat(result[0].lat);
                 const lngDest = parseFloat(result[0].lon);
-
-                // 3. Rimuove eventuali tracciati precedenti sulla mappa
-                if (routingControl) map.removeControl(routingControl);
-
-                // 4. Iniezione del tracciato stradale ottimale e visualizzazione tempo/distanza
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                }
                 routingControl = L.Routing.control({
                     waypoints: [
-                        L.latLng(v.latitudine, v.longitudine), // Partenza A (Veicolo)
-                        L.latLng(latDest, lngDest)             // Arrivo B (Scelta utente)
+                        L.latLng(v.latitudine, v.longitudine),
+                        L.latLng(latDest, lngDest)
                     ],
                     router: L.Routing.osrmv1({
-                        // OSRM calcola l'itinerario dinamico ideale per la guida urbana
                         serviceUrl: 'https://router.project-osrm.org/route/v1'
                     }),
                     lineOptions: {
-                        styles: [{ color: '#ff5722', opacity: 0.8, weight: 6 }] // Linea arancione Izalith
+                        styles: [{ color: '#ff5722', opacity: 0.8, weight: 6 }]
                     },
-                    show: true // Mostra il pannello con le indicazioni di svolta e minuti stimati
+                    show: true,
+                    collapsible: true,
+                    addWaypoints: false,
+                    draggableWaypoints: false,
+                    fitSelectedRoutes: true
                 }).addTo(map);
-
             } catch (err) {
                 console.error(err);
                 alert("Errore durante il calcolo dell'itinerario.");
             }
         }
-
         function toggleMotore() {
             const btn = document.getElementById("btn-motore");
-            const btnPausa = document.getElementById("btn-pausa");
             motoreAcceso = !motoreAcceso;
-            btn.innerText = motoreAcceso ? "SPEGNI MOTORE" : "ACCENDI MOTORE";
-            btn.style.background = motoreAcceso ? "#f44336" : "#4CAF50";
-            if (btnPausa) {
-                btnPausa.disabled = motoreAcceso;
-                btnPausa.style.opacity = motoreAcceso ? "0.5" : "1";
-                btnPausa.style.cursor = motoreAcceso ? "not-allowed" : "pointer";
+            if (motoreAcceso) {
+                btn.innerText = "SPEGNI MOTORE";
+                btn.style.background = "#f44336";
+                avviaCronometroMotore();
+            } else {
+                btn.innerText = "ACCENDI MOTORE";
+                btn.style.background = "#4CAF50";
+                fermaCronometroMotore();
             }
         }
-
         function ricercaVeicolo() {
             const popup = document.getElementById("popup-ricerca");
             popup.style.display = "block";
-            setTimeout(() => { popup.style.display = "none"; }, 5000); 
+            setTimeout(() => {
+                popup.style.display = "none";
+            }, 5000);
         }
-
         function attivaRicarica() {
-            if (routingControl) map.removeControl(routingControl);
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
             document.getElementById("content").innerHTML = `
                 <h3 class="text-charging">Il veicolo è in carica</h3>
                 <p>Veicolo: ${datiNoleggioCorrente.veicolo_id}</p>
+                <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Cronometro motore</span>
+                        <span id="timer-noleggio">00.00.00</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Prezzo attuale</span>
+                        <span id="prezzo-noleggio">0.00 €</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Tariffa applicata</span>
+                        <span id="tariffa-noleggio">0.00 €/min</span>
+                    </div>
+                </div>
                 <button class="btn-stop-charge" onclick="mostraNoleggioAttivo()">INTERROMPI RICARICA</button>
             `;
+            aggiornaDisplayCronometroPrezzo();
         }
-
         async function mettiInPausa() {
-            if (motoreAcceso) { alert("⚠️ Spegni il motore prima di mettere in pausa il noleggio!"); return; }
             try {
-                await supabaseClient.from("noleggi").update({ stato: "In Pausa" }).eq("id", datiNoleggioCorrente.id);
+                motoreAcceso = false;
+                fermaCronometroMotore();
+                await supabaseClient
+                    .from("noleggi")
+                    .update({ stato: "In Pausa" })
+                    .eq("id", datiNoleggioCorrente.id);
                 datiNoleggioCorrente.stato = "In Pausa";
-                if (routingControl) map.removeControl(routingControl);
+                const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+                infoLocale.stato = "In Pausa";
+                infoLocale.secondi_motore = secondiMotore;
+                infoLocale.prezzo_corrente = calcolaPrezzoAttuale();
+                localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                }
                 mostraNoleggioInPausa();
-            } catch (err) { alert("Errore: " + err.message); }
+            } catch (err) {
+                alert("Errore: " + err.message);
+            }
         }
-
         async function riprendiNoleggio() {
             try {
-                await supabaseClient.from("noleggi").update({ stato: "Attivo" }).eq("id", datiNoleggioCorrente.id);
+                await supabaseClient
+                    .from("noleggi")
+                    .update({ stato: "Attivo" })
+                    .eq("id", datiNoleggioCorrente.id);
                 datiNoleggioCorrente.stato = "Attivo";
+                motoreAcceso = false;
+                const infoLocale = JSON.parse(localStorage.getItem("noleggio_corrente_info") || "{}");
+                infoLocale.stato = "Attivo";
+                localStorage.setItem("noleggio_corrente_info", JSON.stringify(infoLocale));
                 mostraNoleggioAttivo();
-            } catch (err) { alert("Errore: " + err.message); }
+            } catch (err) {
+                alert("Errore: " + err.message);
+            }
         }
-
         function mostraNoleggioInPausa() {
+            const prezzoAttuale = calcolaPrezzoAttuale();
             document.getElementById("content").innerHTML = `
                 <h3 class="text-paused">|| Noleggio in Pausa</h3>
                 <p>Veicolo: ${datiNoleggioCorrente.veicolo_id}</p>
-                <p style="font-size: 0.9em; color: #aaa;">Il motore è bloccato. Nessun altro può prenotare questo mezzo.</p>
+                <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Cronometro fermo</span>
+                        <span>${formattaTempoDaSecondi(secondiMotore)}</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Prezzo attuale</span>
+                        <span>${prezzoAttuale.toFixed(2)} €</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Tariffa applicata</span>
+                        <span>${costoMinutoCorrente.toFixed(2)} €/min</span>
+                    </div>
+                </div>
+                <p style="font-size: 0.9em; color: #aaa;">
+                    Il noleggio è sospeso. Il cronometro non avanza durante la pausa.
+                </p>
                 <button class="btn-resume" onclick="riprendiNoleggio()">RIPRENDI NOLEGGIO</button>
             `;
         }
-
         async function checkPosizioneVeicolo(codiceVeicolo) {
-            const { data: veicolo, error } = await supabaseClient.from("veicoli").select("latitudine, longitudine").eq("codice", codiceVeicolo).single();
-            if (error || !veicolo) return false;
+            const { data: veicolo, error } = await supabaseClient
+                .from("veicoli")
+                .select("latitudine, longitudine")
+                .eq("codice", codiceVeicolo)
+                .single();
+            if (error || !veicolo) {
+                return false;
+            }
             const puntoVeicolo = turf.point([veicolo.longitudine, veicolo.latitudine]);
             const inArea = areeSostaList.some(poly => turf.booleanPointInPolygon(puntoVeicolo, poly));
             return inArea;
         }
-
         async function terminaNoleggio(codice, id) {
-            if (motoreAcceso) { alert("⚠️ Spegni il motore prima di terminare il noleggio!"); return; }
+            if (motoreAcceso) {
+                alert("⚠️ Spegni il motore prima di terminare il noleggio!");
+                return;
+            }
             const inZona = await checkPosizioneVeicolo(codice);
-            if (!inZona) { alert("🚫 Non puoi terminare il noleggio: il veicolo non si trova in un'area sosta autorizzata."); return; }
-            try {
-                await supabaseClient.from("noleggi").update({ stato: "Concluso", data_fine: new Date().toISOString() }).eq("id", id);
-                await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", codice);
-                alert("Noleggio terminato correttamente!");
-                window.location.href = "dashboard.html";
-            } catch (err) { alert("Errore DB: " + err.message); }
+            if (!inZona) {
+                alert("🚫 Non puoi terminare il noleggio: il veicolo non si trova in un'area sosta autorizzata.");
+                return;
+            }
+            fermaCronometroMotore();
+            pagamentoDaEffettuare = {
+                codice: codice,
+                id: id,
+                tempo: formattaTempoDaSecondi(secondiMotore),
+                importo: calcolaPrezzoAttuale()
+            };
+            mostraSchermataPagamentoWallet();
         }
-        
+        async function mostraSchermataPagamentoWallet() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+            const { data: utente, error } = await supabaseClient
+                .from("utenti")
+                .select("wallet_balance")
+                .eq("id", user.id)
+                .single();
+            if (error || !utente) {
+                alert("Errore nel recupero del saldo Wallet.");
+                return;
+            }
+            const saldoWallet = Number(utente.wallet_balance || 0);
+            const importo = Number(pagamentoDaEffettuare.importo || 0);
+            const saldoDopoPagamento = saldoWallet - importo;
+            document.getElementById("content").innerHTML = `
+                <h3>Pagamento noleggio</h3>
+                <p style="color: var(--text-muted); font-size: 13px;">
+                    Il noleggio è terminato. Il pagamento verrà effettuato tramite Wallet.
+                </p>
+                <div class="rental-stats">
+                    <div class="rental-stat-row">
+                        <span>Metodo pagamento</span>
+                        <span>Wallet</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Tempo di noleggio</span>
+                        <span>${pagamentoDaEffettuare.tempo}</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Totale da pagare</span>
+                        <span>${importo.toFixed(2)} €</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Saldo attuale</span>
+                        <span>${saldoWallet.toFixed(2)} €</span>
+                    </div>
+                    <div class="rental-stat-row">
+                        <span>Saldo dopo pagamento</span>
+                        <span>${saldoDopoPagamento.toFixed(2)} €</span>
+                    </div>
+                </div>
+                <div class="payment-box">
+                    <p style="font-size: 13px; color: #aaa;">
+                        Premi PAGA per scalare l'importo dal Wallet e chiudere definitivamente il noleggio.
+                    </p>
+                    <button class="btn-pay" onclick="pagaConWalletETerminaNoleggio()">
+                        PAGA CON WALLET
+                    </button>
+                </div>
+            `;
+        }
+        async function pagaConWalletETerminaNoleggio() {
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    window.location.href = "login-user.html";
+                    return;
+                }
+                const { data: utente, error: walletReadError } = await supabaseClient
+                    .from("utenti")
+                    .select("wallet_balance")
+                    .eq("id", user.id)
+                    .single();
+                if (walletReadError || !utente) {
+                    alert("Errore nel recupero del saldo Wallet.");
+                    return;
+                }
+                const saldoAttuale = Number(utente.wallet_balance || 0);
+                const importo = Number(pagamentoDaEffettuare.importo || 0);
+                if (saldoAttuale < importo) {
+                    alert("Saldo Wallet insufficiente. Ricarica il Wallet prima di completare il pagamento.");
+                    return;
+                }
+                const nuovoSaldo = saldoAttuale - importo;
+                const { error: walletUpdateError } = await supabaseClient
+                    .from("utenti")
+                    .update({ wallet_balance: nuovoSaldo })
+                    .eq("id", user.id);
+                if (walletUpdateError) {
+                    alert("Errore durante l'aggiornamento del Wallet: " + walletUpdateError.message);
+                    return;
+                }
+                const { error: rentalUpdateError } = await supabaseClient
+                    .from("noleggi")
+                    .update({
+                        stato: "Concluso",
+                        data_fine: new Date().toISOString()
+                    })
+                    .eq("id", pagamentoDaEffettuare.id);
+                if (rentalUpdateError) {
+                    alert("Pagamento effettuato, ma errore durante la chiusura del noleggio: " + rentalUpdateError.message);
+                    return;
+                }
+                const { error: vehicleUpdateError } = await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "Disponibile" })
+                    .eq("codice", pagamentoDaEffettuare.codice);
+                if (vehicleUpdateError) {
+                    alert("Pagamento effettuato, ma errore durante l'aggiornamento dello stato del veicolo: " + vehicleUpdateError.message);
+                    return;
+                }
+                localStorage.removeItem("noleggio_corrente_info");
+                alert("Pagamento avvenuto con successo. Il totale è stato scalato dal Wallet.");
+                window.location.href = "dashboard.html";
+            } catch (err) {
+                alert("Errore durante il pagamento Wallet: " + err.message);
+            }
+        }
         init();
     </script>
 </body>
