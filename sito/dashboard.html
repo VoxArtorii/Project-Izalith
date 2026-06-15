@@ -137,7 +137,6 @@
             });
         }
 
-        // Funzione FILTRATA (Aggiornata per includere i veicoli con prenotazioni programmate future)
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
@@ -146,12 +145,10 @@
             
             let veicoliOccupati = [];
 
-            // Caso 1: L'utente usa i filtri di ricerca oraria sulla barra laterale
             if (filtroInizio && filtroFine) {
                 let inizioRichiesto = new Date(filtroInizio);
                 let fineRichiesta = new Date(filtroFine);
 
-                // Calcolo finestra di anticipo per la sovrapposizione (30 minuti prima)
                 let inizioConAnticipo = new Date(inizioRichiesto);
                 inizioConAnticipo.setMinutes(inizioConAnticipo.getMinutes() - 30);
 
@@ -164,15 +161,12 @@
                         let pInizio = new Date(p.data_inizio_prevista);
                         let pFine = new Date(p.data_fine_prevista);
                         
-                        // Algoritmo di intersezione temporale con blocco di 30 min applicato alle prenotazioni esistenti
                         if (inizioRichiesto < pFine && fineRichiesta > new Date(pInizio.getTime() - 30 * 60000)) {
                             veicoliOccupati.push(p.veicolo_id);
                         }
                     });
                 }
             } else {
-                // Caso 2: Visualizzazione della mappa standard in tempo reale
-                // Nascondiamo solo i veicoli che hanno una prenotazione imminente che inizia entro i prossimi 30 minuti
                 const { data: prenotazioniImminenti } = await supabaseClient
                     .from("prenotazioni")
                     .select("veicolo_id, data_inizio_prevista");
@@ -183,7 +177,6 @@
                         let pInizio = new Date(p.data_inizio_prevista);
                         let diffMinuti = (pInizio - adesso) / (1000 * 60);
                         
-                        // Se la prenotazione inizia tra meno di 30 minuti, il mezzo scompare dalla visualizzazione immediata
                         if (diffMinuti > 0 && diffMinuti <= 30) {
                             veicoliOccupati.push(p.veicolo_id);
                         }
@@ -191,7 +184,6 @@
                 }
             }
             
-            // Carica tutti i veicoli che non sono attualmente in uso fisico ("In uso" o "Prenotato" istantaneamente)
             let query = supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
             
             if (tipoSelezionato !== "Tutti") {
@@ -252,18 +244,32 @@
             }
         }
 
-        // Calcola e smista i dati di tempo inseriti prima del salvataggio
+        // AGGIORNATA: Genera le stringhe temporali rispettando il fuso orario locale
         async function gestisciPrenotazionePulsante(codiceMezzo) {
             const filtroInizio = document.getElementById("filtro-inizio").value;
             const filtroFine = document.getElementById("filtro-fine").value;
 
-            let dataInizio = filtroInizio ? new Date(filtroInizio) : new Date();
-            let dataFine = filtroFine ? new Date(filtroFine) : new Date(Date.now() + 60 * 60 * 1000); // 1 ora di default per le istantanee
+            let dataInizioStr, dataFineStr;
 
-            await avviaPrenotazione(codiceMezzo, dataInizio.toISOString(), dataFine.toISOString(), !filtroInizio);
+            if (filtroInizio && filtroFine) {
+                // Sostituiamo il carattere 'T' con uno spazio per renderlo pienamente compatibile con i campi TIMESTAMP di PostgreSQL
+                dataInizioStr = filtroInizio.replace('T', ' ');
+                dataFineStr = filtroFine.replace('T', ' ');
+                await avviaPrenotazione(codiceMezzo, dataInizioStr, dataFineStr, false);
+            } else {
+                // Se è istantanea, creiamo una stringa ISO locale per evitare sfasamenti di ore
+                let oraLocale = new Date();
+                let scadenzaLocale = new Date(Date.now() + 60 * 60 * 1000); // 1 ora di default
+                
+                // Formattazione manuale YYYY-MM-DD HH:MM:SS basata sull'orario del browser dell'utente
+                const formattaLocale = (d) => {
+                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                };
+                
+                await avviaPrenotazione(codiceMezzo, formattaLocale(oraLocale), formattaLocale(scadenzaLocale), true);
+            }
         }
 
-        // Salva i dati direttamente sulla nuova tabella pulita 'prenotazioni'
         async function avviaPrenotazione(codiceMezzo, dataInizio, dataFine, esecuzioneIstantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
@@ -286,7 +292,6 @@
                     }]);
                 if (insertError) throw insertError;
 
-                // Se la prenotazione è immediata/istantanea (senza filtri), blocca subito il veicolo
                 if (esecuzioneIstantanea) {
                     await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codiceMezzo);
                 }
