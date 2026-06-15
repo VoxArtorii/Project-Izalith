@@ -125,12 +125,18 @@
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
             
+            // Funzione per calcolare l'offset del fuso orario corrente (es: +02:00)
+            const getTzOffset = () => {
+                const o = new Date().getTimezoneOffset();
+                return (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0');
+            };
+            const tz = getTzOffset();
+            
             if (startF && endF) {
-                await avviaPrenotazione(codice, startF, endF, false);
+                await avviaPrenotazione(codice, `${startF}:00${tz}`, `${endF}:00${tz}`, false);
             } else {
-                let d = new Date();
-                let s = new Date(d.getTime() + 3600000);
-                const f = (x) => x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0') + 'T' + String(x.getHours()).padStart(2,'0') + ':' + String(x.getMinutes()).padStart(2,'0');
+                let d = new Date(), s = new Date(d.getTime() + 3600000);
+                const f = (x) => x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0') + 'T' + String(x.getHours()).padStart(2,'0') + ':' + String(x.getMinutes()).padStart(2,'0') + ':00' + tz;
                 await avviaPrenotazione(codice, f(d), f(s), true);
             }
         }
