@@ -100,38 +100,34 @@ async function caricaVeicoliFlotta() {
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
+            // Definiamo il tempo di ricerca (filtro) in millisecondi UTC
+            const sRicerca = new Date(startF).getTime();
+            const eRicerca = new Date(endF).getTime();
+            
             veicoli?.forEach(v => {
-                // 1. Escludi se in uso attuale
                 if (v.stato === "In uso") return;
                 
                 let isOccupato = false;
                 
-                // 2. Controllo disponibilità basato su prenotazioni future
                 if (startF && endF) {
-                    let s = new Date(startF).getTime();
-                    let e = new Date(endF).getTime();
-                    
                     prenotazioni?.forEach(p => {
                         if (p.veicolo_id === v.codice) {
-                            let ps = new Date(p.data_inizio_prevista).getTime();
-                            let pe = new Date(p.data_fine_prevista).getTime();
+                            // IMPORTANTE: convertiamo le date del DB forzandole come stringhe ISO complete
+                            // Se nel DB hai "2026-06-15T22:00:00+02:00", new Date lo legge perfettamente
+                            const ps = new Date(p.data_inizio_prevista).getTime();
+                            const pe = new Date(p.data_fine_prevista).getTime();
                             
-                            // Controllo: se la data non è valida, consideralo occupato per sicurezza
-                            if (isNaN(ps) || isNaN(pe)) {
-                                isOccupato = true;
-                            } 
-                            // Logica di sovrapposizione
-                            else if (s < pe && e > ps) {
+                            // Se la ricerca (22:10-22:15) si sovrappone a una prenotazione (22:00-23:00)
+                            // La condizione (sRicerca < pe && eRicerca > ps) scatterà correttamente
+                            if (sRicerca < pe && eRicerca > ps) {
                                 isOccupato = true;
                             }
                         }
                     });
                 }
                 
-                // 3. Se è occupato, non renderizzarlo
                 if (isOccupato) return;
 
-                // 4. Render del veicolo
                 div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
                 if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
             });
