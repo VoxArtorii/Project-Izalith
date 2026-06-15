@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Izalith - Sistema Mobility Sharing</title>
+    <style>
+        :root {
+            --primary-orange: #FF5722;
+            --dark-bg: #121212;
+            --surface-card: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --border-color: #2C2C2C;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .welcome-container { max-width: 1200px; margin: auto; padding: 40px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .hero-presentation { display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Logo Stile Project Izalith */
+        .logo-wrapper { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .brand-title { font-size: 32px; font-weight: 800; letter-spacing: 1.5px; }
+        .brand-title span { color: var(--primary-orange); }
+        
+        h1 { font-size: 46px; line-height: 1.2; font-weight: 700; }
+        h1 span { color: var(--primary-orange); }
+        p.description { color: var(--text-muted); font-size: 18px; line-height: 1.6; }
+        
+        .gateways-box { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 35px; display: flex; flex-direction: column; gap: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .gate-section { padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+        .gate-section:last-child { padding-bottom: 0; border-bottom: none; }
+        .gate-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+        
+        .btn-link { display: inline-block; background-color: var(--primary-orange); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; text-align: center; transition: background 0.3s, transform 0.2s; border: none; cursor: pointer; }
+        .btn-link:hover { background-color: #E64A19; transform: translateY(-2px); }
+        .btn-secondary { background-color: transparent; border: 1px solid var(--primary-orange); color: var(--primary-orange); margin-left: 10px; }
+        .btn-secondary:hover { background-color: rgba(255, 87, 34, 0.1); }
+        .btn-staff { background-color: #333333; border: 1px solid #444; width: 100%; }
+        .btn-staff:hover { background-color: #444444; }
+        
+        footer { background: #0A0A0A; text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border-color); }
+    </style>
+</head>
+<body>
+
+    <div class="welcome-container">
+        <div class="hero-presentation">
+            <div class="logo-wrapper">
+                <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M50 5 C15 35 15 75 50 95 C85 75 85 35 50 5 Z" fill="#FF5722"/>
+                    <polygon points="52,15 35,52 48,52 44,82 65,42 50,42" fill="#FFFFFF"/>
+                    <rect x="32" y="58" width="36" height="15" rx="4" fill="#121212" stroke="#FFFFFF" stroke-width="2"/>
+                    <circle cx="40" cy="66" r="2.5" fill="#FF5722"/>
+                    <circle cx="60" cy="66" r="2.5" fill="#FF5722"/>
+                </svg>
+                <div class="brand-title">PROJECT <span>IZALITH</span></div>
+            </div>
+            <h1>La mobilità urbana, <span>eco-sostenibile</span> e intelligente.</h1>
+            <p class="description">Project Izalith introduce una piattaforma di sharing di nuova generazione a impatto ambientale zero. Connettiamo veicoli elettrici IoT (Auto, Scooter, Monopattini) con i cittadini e le Pubbliche Amministrazioni per ottimizzare i flussi di traffico e tracciare la salute dell'aria nelle Smart City.</p>
+        </div>
+
+        <div class="gateways-box">
+            <div class="gate-section">
+                <div class="gate-title">🚗 Area Cittadini / Utenti</div>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">Accedi per cercare i mezzi disponibili sul territorio, gestire il tuo portafoglio ed avviare un noleggio.</p>
+                <a href="login-user.html" class="btn-link">Accedi</a>
+                <a href="registrazione.html" class="btn-link btn-secondary">Registrati al Servizio</a>
+            </div>
+            
+            <div class="gate-section">
+                <div class="gate-title">🏢 Portale Amministrazione & Operatori</div>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">Punto di accesso riservato agli Enti Comunali (PA) per telemetria ambientale ed agli Operatori logistici per la manutenzione della flotta.</p>
+                <a href="login-staff.html" class="btn-link btn-staff">Ingresso Personale Autorizzato</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 Project Izalith - Progetto per l'esame di Ingegneria del Software - Sviluppato in conformità con la metodologia Agile/Scrum.
+    </footer>
+
+</body>
+</html>

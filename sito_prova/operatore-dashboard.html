@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Izalith - Backoffice Logistica</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; background-color: #121212; color: white; height: 100vh; display: flex; flex-direction: column; }
+        
+        .navbar { background: #000; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #FF5722; }
+        .title { color: #FF5722; font-weight: bold; font-size: 1.1em; }
+        .btn-logout { background-color: #FF5722; color: white; border: none; padding: 6px 20px; cursor: pointer; font-weight: bold; border-radius: 2px; }
+        .btn-logout:hover { background-color: #e64a19; }
+        
+        .main-container { display: grid; grid-template-columns: 340px 1fr; flex-grow: 1; overflow: hidden; }
+        .sidebar { padding: 20px; background: #1a1a1a; overflow-y: auto; }
+        
+        /* Stile Accordion */
+        .vehicle-box { background: #222; border: 1px solid #333; margin-bottom: 10px; border-radius: 4px; overflow: hidden; }
+        .vehicle-header { padding: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .vehicle-header:hover { background: #333; }
+        .vehicle-details { padding: 12px; background: #1a1a1a; border-top: 1px solid #333; display: none; font-size: 0.85em; color: #ccc; }
+        
+        .map-container { position: relative; }
+        #map { height: 100%; width: 100%; filter: grayscale(1) invert(1) hue-rotate(180deg); }
+        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+        
+        .table-container { height: 260px; background: #1a1a1a; border-top: 2px solid #333; overflow-y: auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; color: #ccc; margin-bottom: 40px; }
+        th { text-align: left; padding: 10px; border-bottom: 1px solid #444; color: #888; text-transform: uppercase; font-size: 12px; }
+        td { padding: 10px; border-bottom: 1px solid #333; }
+        h3 { color: #fff; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="title">IZALITH - BACKOFFICE LOGISTICA [BA-01]</div>
+        <button class="btn-logout" onclick="logout()">Esci</button>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar" id="lista-veicoli">
+            <h3>FLOTTA ATTIVA</h3>
+            <div id="veicoli-content">Caricamento...</div>
+        </div>
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <h3>🚨 REGISTRO INCIDENTI (DA GESTIRE)</h3>
+        <table>
+            <thead><tr><th>DATA</th><th>VEICOLO</th><th>EVENTO</th><th>AZIONE</th></tr></thead>
+            <tbody id="corpo-tabella-incidenti"></tbody>
+        </table>
+
+        <h3>🛠 REGISTRO CRITICITÀ TECNICHE</h3>
+        <table>
+            <thead><tr><th>AREA</th><th>CATEGORIA</th><th>DESCRIZIONE</th><th>DATA</th></tr></thead>
+            <tbody id="corpo-tabella"></tbody>
+        </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const client = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        async function logout() { await client.auth.signOut(); window.location.href = 'login-user.html'; }
+
+        function toggleDetails(id) {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === "block" ? "none" : "block";
+        }
+
+        async function init() {
+            const map = L.map('map').setView([41.1171, 16.8719], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            // Caricamento Veicoli
+            const { data: veicoli } = await client.from('veicoli').select('*');
+            const container = document.getElementById('veicoli-content');
+            
+            if (veicoli) {
+                container.innerHTML = veicoli.map((v, index) => {
+                    if (v.latitudine && v.longitudine) {
+                        L.marker([v.latitudine, v.longitudine], {icon: L.divIcon({className:'custom-orange-marker', iconSize:[20,20]})})
+                         .addTo(map).bindPopup(v.nome);
+                    }
+                    return `
+                        <div class="vehicle-box">
+                            <div class="vehicle-header" onclick="toggleDetails('details-${index}')">
+                                ${v.nome} <span>▼</span>
+                            </div>
+                            <div style="padding: 0 12px 10px 12px;">
+                                <button class="btn-logout" style="width: 100%; padding: 6px;" 
+                                        onclick="window.location.href='gestione-manutenzione.html?id=${v.codice}'">
+                                    Gestisci Manutenzione
+                                </button>
+                            </div>
+                            <div class="vehicle-details" id="details-${index}">
+                                <b>Tipo:</b> ${v.tipo || 'N/D'}<br>
+                                <b>Stato:</b> ${v.stato || 'Disponibile'}<br>
+                                <b>Batteria:</b> ${v.batteria}%<br>
+                                <b>Lat:</b> ${v.latitudine}<br>
+                                <b>Lon:</b> ${v.longitudine}
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            // Caricamento Segnalazioni
+            const { data: ticket } = await client.from('segnalazioni').select('*');
+            const corpo = document.getElementById("corpo-tabella");
+            const tecniche = ticket?.filter(t => t.categoria?.trim() === "Tecnica");
+            corpo.innerHTML = tecniche?.map(t => 
+                `<tr><td>${t.area}</td><td>${t.categoria}</td><td>${t.descrizione}</td><td>${t.created_at?.split('T')[0]}</td></tr>`
+            ).join('') || "<tr><td colspan='4'>Nessuna segnalazione tecnica.</td></tr>";
+
+            // Inizializza Incidenti
+            caricaIncidenti();
+        }
+
+        // Funzioni Incidenti
+        async function caricaIncidenti() {
+            const { data: incidenti } = await client.from('incidenti')
+                .select('*, noleggi(veicolo_id)')
+                .eq('stato', 'Segnalato');
+
+            const corpo = document.getElementById("corpo-tabella-incidenti");
+            corpo.innerHTML = incidenti?.map(inc => `
+                <tr>
+                    <td>${new Date(inc.timestamp).toLocaleDateString()}</td>
+                    <td>${inc.noleggi?.veicolo_id || 'N/A'}</td>
+                    <td>${inc.tipo_evento}</td>
+                    <td>
+                        <button onclick="generaRapportoPA('${inc.id}')" style="background:#FF5722; color:white; border:none; padding:5px 10px; cursor:pointer; margin-right:5px;">📄 PDF</button>
+                        <button onclick="window.location.href='invio-segnalazione.html?id=${inc.id}'" style="background:#008CBA; color:white; border:none; padding:5px 10px; cursor:pointer;">📧 Invia</button>
+                    </td>
+                </tr>
+            `).join('') || "<tr><td colspan='4'>Nessun incidente in sospeso.</td></tr>";
+        }
+
+        async function generaRapportoPA(idIncidente) {
+            const { data: inc } = await client.from('incidenti').select('*, noleggi(veicolo_id)').eq('id', idIncidente).single();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(20);
+            doc.text("RAPPORTO INTERVENTO - IZALITH", 20, 20);
+            doc.setFontSize(12);
+            doc.text(`Data: ${new Date().toLocaleString()}`, 20, 30);
+            doc.line(20, 35, 190, 35);
+            doc.text(`ID Evento: ${inc.id}`, 20, 45);
+            doc.text(`Veicolo: ${inc.noleggi?.veicolo_id}`, 20, 55);
+            doc.text(`Evento: ${inc.tipo_evento}`, 20, 65);
+            doc.text(`Descrizione: ${inc.descrizione || "Nessuna nota aggiuntiva."}`, 20, 75);
+            doc.save(`Rapporto_Intervento_${inc.noleggi?.veicolo_id}.pdf`);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

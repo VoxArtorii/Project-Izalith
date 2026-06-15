@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Gestione Wallet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary-orange: #FF5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: var(--text-light); min-height: 100vh; }
+        
+        .app-navbar { background-color: #0A0A0A; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); }
+        .nav-brand { font-weight: bold; font-size: 20px; color: var(--primary-orange); text-decoration: none; }
+        
+        .content-container { max-width: 900px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px; }
+        .card { background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; }
+        
+        .balance-display { font-size: 42px; font-weight: bold; color: var(--primary-orange); margin-bottom: 25px; }
+        
+        .method-group { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+        .method-option { background: #000; border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; }
+        .method-option input { margin-right: 15px; accent-color: var(--primary-orange); }
+        
+        .input-money { background: #000; border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; color: white; width: 100%; margin-top: 10px; font-size: 16px; }
+        .btn-pay { background: var(--primary-orange); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 20px; cursor: pointer; transition: 0.3s; }
+        .btn-pay:hover { filter: brightness(1.2); }
+        
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .history-table th, .history-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .history-table th { color: var(--text-muted); text-transform: uppercase; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <nav class="app-navbar">
+        <a href="dashboard.html" class="nav-brand">IZALITH - WALLET</a>
+        <a href="dashboard.html" style="color:var(--text-muted); text-decoration:none;">Torna alla Mappa</a>
+    </nav>
+
+    <div class="content-container">
+        <div class="card">
+            <h3>Saldo Disponibile</h3>
+            <div class="balance-display" id="saldo-attuale">Caricamento...</div>
+            
+            <label>Importo Ricarica (€)</label>
+            <input type="number" id="amount" class="input-money" placeholder="Inserisci importo">
+
+            <div class="method-group">
+                <label>Metodo di pagamento</label>
+                <label class="method-option"><input type="radio" name="metodo" value="PayPal" checked> PayPal</label>
+                <label class="method-option"><input type="radio" name="metodo" value="Carta di Credito"> Carta di Credito</label>
+                <label class="method-option"><input type="radio" name="metodo" value="Apple Pay"> Apple Pay</label>
+            </div>
+
+            <button class="btn-pay" onclick="processaRicarica()">PROCEDI AL PAGAMENTO</button>
+        </div>
+
+        <div class="card">
+            <h3>Storico Movimenti</h3>
+            <table class="history-table">
+                <thead><tr><th>Data</th><th>Descrizione</th><th>Importo</th></tr></thead>
+                <tbody id="storico-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Configurazione client Supabase rinominata per evitare conflitti
+        const sbClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        let userId = "";
+
+        async function init() {
+            const { data: { user } } = await sbClient.auth.getUser();
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+            userId = user.id;
+            aggiornaDati();
+        }
+
+        async function aggiornaDati() {
+            try {
+                // Carica Saldo
+                const { data: utente } = await sbClient.from('utenti').select('wallet_balance').eq('id', userId).single();
+                if (utente) {
+                    document.getElementById('saldo-attuale').innerText = `€ ${utente.wallet_balance.toFixed(2)}`;
+                }
+
+                // Carica Storico
+                const { data: transazioni } = await sbClient.from('storico_transazioni')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false });
+                
+                const tbody = document.getElementById('storico-body');
+                if (transazioni) {
+                    tbody.innerHTML = transazioni.map(t => `
+                        <tr>
+                            <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                            <td>${t.descrizione}</td>
+                            <td style="color:${t.importo > 0 ? '#4CAF50' : '#f44336'}">${t.importo > 0 ? '+' : ''}€ ${t.importo.toFixed(2)}</td>
+                        </tr>`).join('');
+                }
+            } catch (err) {
+                console.error("Errore caricamento dati:", err);
+            }
+        }
+
+        async function processaRicarica() {
+            const input = document.getElementById('amount');
+            const importo = parseFloat(input.value);
+            const metodo = document.querySelector('input[name="metodo"]:checked').value;
+            
+            if (isNaN(importo) || importo <= 0) return alert("Inserisci un importo valido");
+
+            try {
+                const { data: utente } = await sbClient.from('utenti').select('wallet_balance').eq('id', userId).single();
+                
+                await sbClient.from('utenti').update({ wallet_balance: utente.wallet_balance + importo }).eq('id', userId);
+                await sbClient.from('storico_transazioni').insert([{ 
+                    user_id: userId, 
+                    importo: importo, 
+                    descrizione: `Ricarica via ${metodo}` 
+                }]);
+                
+                alert(`Ricarica di €${importo.toFixed(2)} effettuata con successo.`);
+                input.value = "";
+                aggiornaDati();
+            } catch (err) {
+                alert("Errore durante la ricarica: " + err.message);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

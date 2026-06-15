@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Invio Segnalazione - Izalith</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; background-color: #121212; color: white; padding: 40px; }
+        .container { max-width: 600px; margin: auto; background: #1a1a1a; padding: 25px; border-radius: 8px; border: 1px solid #333; }
+        h2 { color: #FF5722; margin-top: 0; }
+        label { display: block; margin: 15px 0 5px; color: #aaa; }
+        select, textarea, input { width: 100%; padding: 12px; border-radius: 4px; border: 1px solid #333; background: #222; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-invia { background: #FF5722; color: white; }
+        .btn-invia:hover { background: #e64a19; }
+        .btn-indietro { background: #333; color: white; margin-top: 10px; }
+        .btn-indietro:hover { background: #444; }
+        .status { margin-top: 15px; padding: 10px; display: none; text-align: center; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📧 Invia Segnalazione PA</h2>
+        <p style="color: #666; font-size: 0.9em;">ID Incidente: <span id="display-id">...</span></p>
+
+        <label>Destinatario (PEC):</label>
+        <select id="destinatario">
+            <option value="polizia.municipale@pec.comune.bari.it">Polizia Municipale (Bari)</option>
+            <option value="protocollo.prefettura@pec.interno.it">Prefettura</option>
+            <option value="assicurazione.sinistri@izalith.it">Ufficio Assicurativo</option>
+        </select>
+
+        <label>Messaggio:</label>
+        <textarea id="messaggio" rows="5">Si trasmette in allegato il rapporto di incidente relativo al veicolo oggetto di noleggio. Si richiede la presa in carico della segnalazione.</textarea>
+
+        <button class="btn-invia" onclick="invia()">Invia Comunicazione</button>
+        <button class="btn-indietro" onclick="window.history.back()">Torna Indietro</button>
+
+        <div id="status-msg" class="status"></div>
+    </div>
+
+    <script>
+        // Recupera l'ID dall'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const incidenteId = urlParams.get('id');
+        document.getElementById('display-id').innerText = incidenteId || "Non specificato";
+
+        function invia() {
+            const status = document.getElementById('status-msg');
+            const dest = document.getElementById('destinatario').value;
+            
+            // Simulazione invio
+            status.style.display = "block";
+            status.style.backgroundColor = "#2e7d32";
+            status.innerHTML = `Email inviata correttamente a ${dest}!`;
+            
+            // Qui in futuro collegheremo il backend per l'invio reale
+            console.log("Invio in corso per l'incidente:", incidenteId);
+        }
+    </script>
+</body>
+</html>
