@@ -23,8 +23,15 @@
         .map-wrapper { width: 100%; height: 100%; }
         #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
         .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
+        .btn-reserve { background: #2196F3; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
         .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+        
+        /* Nuovi elementi di stile per i filtri orari */
+        .filter-section { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+        .filter-section label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px; font-weight: bold; }
+        .filter-section input { width: 100%; padding: 8px; background: #222; border: 1px solid var(--border-color); color: white; border-radius: 4px; margin-top: 3px; }
+        .btn-filter { background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -40,6 +47,15 @@
     </nav>
     <div class="main-workspace">
         <div class="sidebar-fleet">
+            <div class="filter-section">
+                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">RICERCA DISPONIBILITÀ</div>
+                <label>INIZIO PREVISTO</label>
+                <input type="datetime-local" id="filtro-inizio">
+                <label>FINE PREVISTA</label>
+                <input type="datetime-local" id="filtro-fine">
+                <button class="btn-filter" onclick="caricaVeicoliFlotta()">APPLICA FILTRO</button>
+            </div>
+
             <div style="font-weight:bold; margin-bottom:15px;">FLOTTA ATTIVA</div>
             <select id="tipo-veicolo" style="width:100%; padding:8px; margin-bottom:15px; background:#222; color:white;" onchange="caricaVeicoliFlotta()">
                 <option value="Tutti">Tutti i Mezzi</option>
@@ -120,12 +136,31 @@
             });
         }
 
-        // Funzione FILTRATA
+        // Funzione FILTRATA (Aggiornata per supportare la ricerca temporale flessibile)
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
             const tipoSelezionato = document.getElementById("tipo-veicolo").value;
+            const filtroInizio = document.getElementById("filtro-inizio").value;
+            const filtroFine = document.getElementById("filtro-fine").value;
             
-            let query = supabaseClient.from("veicoli").select("*").eq("stato", "Disponibile");
+            let veicoliOccupati = [];
+
+            // Se l'utente imposta i filtri di data e orario, escludiamo i veicoli occupati in quel lasso di tempo
+            if (filtroInizio && filtroFine) {
+                const { data: noleggiSovrapposti } = await supabaseClient
+                    .from("noleggi")
+                    .select("veicolo_id")
+                    .in("stato", ["Attivo", "Prenotato", "In Pausa"])
+                    .lt("data_inizio", new Date(filtroFine).toISOString())
+                    .gt("data_fine", new Date(filtroInizio).toISOString());
+
+                if (noleggiSovrapposti) {
+                    veicoliOccupati = noleggiSovrapposti.map(n => n.veicolo_id);
+                }
+            }
+            
+            // Carica tutti i veicoli liberi nello stato attuale o non prenotati
+            let query = supabaseClient.from("veicoli").select("*").in("stato", ["Disponibile"]);
             
             if (tipoSelezionato !== "Tutti") {
                 query = query.eq("tipo", tipoSelezionato);
@@ -136,14 +171,18 @@
             div.innerHTML = "";
             
             veicoli?.forEach(v => {
+                // Se stiamo usando il filtro temporale e questo veicolo specifico risulta occupato, lo saltiamo
+                if (veicoliOccupati.includes(v.codice)) return;
+
                 div.innerHTML += `
                     <div class="vehicle-box">
                         <strong>${v.nome}</strong><br>
                         Batteria: ${v.batteria}%<br>
                         <button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia (2.50€)</button>
+                        <button class="btn-reserve" onclick="avviaPrenotazione('${v.codice}')">Prenota Veicolo</button>
                     </div>`;
                 if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
+                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(`<b>${v.nome}</b><br><button onclick="avviaPrenotazione('${v.codice}')" style="background:#2196F3;color:white;border:none;padding:5px;cursor:pointer;margin-top:5px;border-radius:4px;width:100%;">Prenota</button>`);
                 }
             });
         }
@@ -179,6 +218,43 @@
                 window.location.href = "noleggio-attivo.html";
             } catch (err) {
                 alert("Errore: " + err.message);
+            }
+        }
+
+        // NUOVA FEATURE: Prenotazione anticipata/istantanea del veicolo
+        async function avviaPrenotazione(codiceMezzo) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                alert("Devi effettuare il login.");
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            if (!confirm("Vuoi prenotare il veicolo " + codiceMezzo + " per garantirne la disponibilità?")) return;
+
+            try {
+                // Inserisce la prenotazione nella tabella noleggi con stato 'Prenotato'
+                const { error: insertError } = await supabaseClient
+                    .from("noleggi")
+                    .insert([{ 
+                        utente_id: user.id, 
+                        veicolo_id: codiceMezzo, 
+                        stato: "Prenotato", 
+                        data_inizio: new Date().toISOString() 
+                    }]);
+                if (insertError) throw insertError;
+
+                // Modifica lo stato del veicolo in 'Prenotato'
+                const { error: updateError } = await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "Prenotato" })
+                    .eq("codice", codiceMezzo);
+                if (updateError) throw updateError;
+
+                alert("Veicolo prenotato con successo!");
+                window.location.href = "noleggio-attivo.html";
+            } catch (err) {
+                alert("Errore durante la prenotazione: " + err.message);
             }
         }
 
