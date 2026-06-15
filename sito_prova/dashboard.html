@@ -156,6 +156,12 @@
             font-weight: bold;
         }
 
+        .btn-reserve:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
         .custom-orange-marker {
             background-color: #FF5722;
             border: 2px solid white;
@@ -448,9 +454,39 @@
                 }
             }
 
+            await sincronizzaVeicoliDemo();
             await disegnaAreeMappa();
             caricaVeicoliFlotta();
         };
+
+        async function sincronizzaVeicoliDemo() {
+            for (const veicolo of veicoliDemo) {
+                await sincronizzaVeicoloDemoSingolo(veicolo);
+            }
+        }
+
+        async function sincronizzaVeicoloDemoSingolo(veicolo) {
+            const payload = {
+                codice: veicolo.codice,
+                nome: veicolo.nome,
+                tipo: veicolo.tipo,
+                stato: veicolo.stato,
+                batteria: veicolo.batteria,
+                latitudine: veicolo.latitudine,
+                longitudine: veicolo.longitudine
+            };
+
+            const { error } = await supabaseClient
+                .from("veicoli")
+                .upsert([payload], { onConflict: "codice" });
+
+            if (error) {
+                console.error("Errore sincronizzazione veicolo demo:", error);
+                return false;
+            }
+
+            return true;
+        }
 
         function calcolaCostoMinuto(veicolo) {
             const tipo = (veicolo.tipo || "").toLowerCase();
@@ -534,6 +570,7 @@
             veicoliFiltrati.forEach(v => {
                 const disponibile = statoDisponibile(v.stato);
                 const costoMinuto = calcolaCostoMinuto(v);
+
                 const statoHtml = disponibile
                     ? `<span class="status-ok">Disponibile</span>`
                     : `<span class="status-ko">Non disponibile - Occupata</span>`;
@@ -542,6 +579,7 @@
                     <div class="vehicle-box ${disponibile ? "" : "unavailable"}">
                         <strong>${v.nome}</strong>
                         <div class="vehicle-type">${v.tipo}</div>
+
                         Stato: ${statoHtml}<br>
                         Batteria: ${v.batteria}%<br>
                         Costo: ${costoMinuto.toFixed(2)} €/min<br>
@@ -631,6 +669,13 @@
                 return;
             }
 
+            const sincronizzato = await sincronizzaVeicoloDemoSingolo(veicoloSelezionato);
+
+            if (!sincronizzato) {
+                alert("Errore: il veicolo non può essere registrato nel database.");
+                return;
+            }
+
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
@@ -647,6 +692,11 @@
                 alert("Errore durante l'avvio del noleggio: " + rentErr.message);
                 return;
             }
+
+            await supabaseClient
+                .from("veicoli")
+                .update({ stato: "In uso" })
+                .eq("codice", veicoloSelezionato.codice);
 
             localStorage.setItem("noleggio_corrente_info", JSON.stringify({
                 veicolo_id: veicoloSelezionato.codice,
@@ -689,6 +739,20 @@
 
             if (!user) {
                 window.location.href = "login-user.html";
+                return;
+            }
+
+            const veicolo = getVeicoloDemoByCodice(codice);
+
+            if (!veicolo) {
+                alert("Veicolo non trovato.");
+                return;
+            }
+
+            const sincronizzato = await sincronizzaVeicoloDemoSingolo(veicolo);
+
+            if (!sincronizzato) {
+                alert("Errore: il veicolo non può essere registrato nel database.");
                 return;
             }
 
