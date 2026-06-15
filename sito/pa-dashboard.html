@@ -30,6 +30,18 @@
         th, td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         th { background: #0A0A0A; color: var(--text-muted); text-transform: uppercase; }
         .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+
+        /* Stile per le etichette dello smog fluttuanti sulla mappa */
+        .smog-label-tooltip {
+            background-color: #222222 !important;
+            color: #FF5722 !important;
+            border: 1px solid #333333 !important;
+            font-weight: bold;
+            font-size: 11px;
+            border-radius: 4px;
+            padding: 2px 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -64,6 +76,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
+        const markerGroup = L.layerGroup().addTo(map);
 
         function toggleDetails(id) {
             const el = document.getElementById(id);
@@ -73,6 +86,8 @@
         async function logoutUser() { await supabaseClient.auth.signOut(); window.location.href = 'login-user.html'; }
 
         async function caricaDatiAggiornati() {
+            markerGroup.clearLayers();
+            
             const { data: veicoli } = await supabaseClient
                 .from('veicoli')
                 .select('*, noleggi(utente_id, utenti(nome, email))')
@@ -84,6 +99,9 @@
             veicoli?.forEach((v, index) => {
                 const noleggio = v.noleggi?.find(n => v.stato === 'In uso');
                 const infoUtente = noleggio ? `<strong>Utente:</strong> ${noleggio.utenti?.nome || 'N/D'} (${noleggio.utenti?.email || 'N/D'})` : '<em>Veicolo libero</em>';
+                
+                // Gestione del fallback se il valore smog nel DB è nullo
+                const tassoSmog = v.smog !== null && v.smog !== undefined ? v.smog : 0;
 
                 lista.innerHTML += `
                     <div class="vehicle-box">
@@ -92,6 +110,7 @@
                         </div>
                         <div class="vehicle-details" id="details-${index}">
                             <b>Stato:</b> ${v.stato}<br>
+                            <b>Tasso Smog:</b> ${tassoSmog}%<br>
                             ${infoUtente}<br>
                             <b>Lat:</b> ${v.latitudine}<br>
                             <b>Lon:</b> ${v.longitudine}
@@ -99,7 +118,17 @@
                     </div>`;
 
                 if(v.latitudine && v.longitudine) {
-                    L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(map).bindPopup(v.nome);
+                    const marker = L.marker([v.latitudine, v.longitudine], {icon: orangeIcon})
+                        .addTo(markerGroup)
+                        .bindPopup(`<b>${v.nome}</b><br>Stato: ${v.stato}<br>Smog: ${tassoSmog}%`);
+                    
+                    // Inserimento del Tooltip fisso sopra l'icona del veicolo
+                    marker.bindTooltip(`${tassoSmog}%`, {
+                        permanent: true,
+                        direction: 'top',
+                        className: 'smog-label-tooltip',
+                        offset: [0, -10]
+                    });
                 }
             });
 
