@@ -86,85 +86,72 @@
             caricaVeicoliFlotta();
         };
 
-async function caricaVeicoliFlotta() {
-    markerGroup.clearLayers();
-    const tipo = document.getElementById("tipo-veicolo").value;
-    const startF = document.getElementById("filtro-inizio").value;
-    const endF = document.getElementById("filtro-fine").value;
-    
-    // Se non ci sono filtri, mostra tutto
-    if (!startF || !endF) {
-        alert("Per favore seleziona sia l'orario di inizio che di fine.");
-        return;
-    }
-
-    let query = supabaseClient.from("veicoli").select("*");
-    if (tipo !== "Tutti") query = query.eq("tipo", tipo);
-    const { data: veicoli } = await query;
-    const { data: prenotazioni } = await supabaseClient.from("prenotazioni").select("*");
-
-    const div = document.getElementById("lista-veicoli");
-    div.innerHTML = "";
-    
-    // Conversione in millisecondi UTC
-    const sRicerca = new Date(startF).getTime();
-    const eRicerca = new Date(endF).getTime();
-    
-    veicoli?.forEach(v => {
-        if (v.stato === "In uso") return;
-        
-        let isOccupato = false;
-        
-        prenotazioni?.forEach(p => {
-            const idVeicoloInPrenotazione = String(p.veicolo_id).trim();
-            const idVeicoloCorrente = String(v.codice).trim();
+        async function caricaVeicoliFlotta() {
+            markerGroup.clearLayers();
+            const tipo = document.getElementById("tipo-veicolo").value;
+            const startF = document.getElementById("filtro-inizio").value;
+            const endF = document.getElementById("filtro-fine").value;
             
-            if (idVeicoloInPrenotazione === idVeicoloCorrente) {
-                // Parsing rigoroso delle date dal DB
-                const ps = new Date(p.data_inizio_prevista).getTime();
-                const pe = new Date(p.data_fine_prevista).getTime();
-                
-                // Debug log: verifica cosa sta confrontando
-                console.log(`Veicolo ${v.codice} - Prenotazione: ${new Date(ps).toLocaleTimeString()} - ${new Date(pe).toLocaleTimeString()}`);
-                console.log(`Ricerca: ${new Date(sRicerca).toLocaleTimeString()} - ${new Date(eRicerca).toLocaleTimeString()}`);
-                
-                // Logica di sovrapposizione:
-                // Se inizio ricerca < fine prenotazione AND fine ricerca > inizio prenotazione
-                if (sRicerca < pe && eRicerca > ps) {
-                    isOccupato = true;
-                    console.log("Veicolo OCCOUPATO rilevato!");
-                }
+            if (!startF || !endF) {
+                alert("Per favore seleziona sia l'orario di inizio che di fine.");
+                return;
             }
-        });
-        
-        if (isOccupato) return;
 
-        div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
-        if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
-    });
-}
-async function gestisciPrenotazionePulsante(codice) {
-    const startF = document.getElementById("filtro-inizio").value; // Es: 2026-06-15T22:10
-    const endF = document.getElementById("filtro-fine").value;     // Es: 2026-06-15T22:15
-    
-    if (!startF || !endF) {
-        alert("Seleziona data e orario nel filtro!");
-        return;
-    }
+            let query = supabaseClient.from("veicoli").select("*");
+            if (tipo !== "Tutti") query = query.eq("tipo", tipo);
+            const { data: veicoli } = await query;
+            const { data: prenotazioni } = await supabaseClient.from("prenotazioni").select("*");
 
-    // Aggiungiamo i secondi se mancano e il formato timezone
-    const getTzOffset = () => {
-        const o = new Date().getTimezoneOffset();
-        return (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0');
-    };
-    const tz = getTzOffset();
-    
-    // Invia la stringa completa: anno-mese-giorno T ora:minuti :00 +offset
-    const inizioCompleto = `${startF}:00${tz}`;
-    const fineCompleto = `${endF}:00${tz}`;
-    
-    await avviaPrenotazione(codice, inizioCompleto, fineCompleto, false);
-}
+            const div = document.getElementById("lista-veicoli");
+            div.innerHTML = "";
+            
+            // Conversione in millisecondi UTC (universali, indipendenti dal fuso orario locale)
+            const sRicerca = new Date(startF).getTime();
+            const eRicerca = new Date(endF).getTime();
+            
+            veicoli?.forEach(v => {
+                if (v.stato === "In uso") return;
+                
+                let isOccupato = false;
+                
+                prenotazioni?.forEach(p => {
+                    const idVeicoloInPrenotazione = String(p.veicolo_id).trim();
+                    const idVeicoloCorrente = String(v.codice).trim();
+                    
+                    if (idVeicoloInPrenotazione === idVeicoloCorrente) {
+                        // Il parse di una stringa ISO (salvata con toISOString) è sempre corretto
+                        const ps = new Date(p.data_inizio_prevista).getTime();
+                        const pe = new Date(p.data_fine_prevista).getTime();
+                        
+                        // Confronto matematico puro in millisecondi
+                        if (sRicerca < pe && eRicerca > ps) {
+                            isOccupato = true;
+                        }
+                    }
+                });
+                
+                if (isOccupato) return;
+
+                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
+                if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
+            });
+        }
+
+        async function gestisciPrenotazionePulsante(codice) {
+            const startF = document.getElementById("filtro-inizio").value;
+            const endF = document.getElementById("filtro-fine").value;
+            
+            if (!startF || !endF) {
+                alert("Seleziona data e orario nel filtro!");
+                return;
+            }
+
+            // Usiamo toISOString() per salvare il momento esatto in UTC, eliminando problemi di offset locale
+            const sDate = new Date(startF);
+            const eDate = new Date(endF);
+            
+            await avviaPrenotazione(codice, sDate.toISOString(), eDate.toISOString(), false);
+        }
 
         async function avviaPrenotazione(codice, inizio, fine, istantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
