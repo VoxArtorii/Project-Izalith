@@ -105,27 +105,6 @@
             line-height: 1.5;
         }
 
-        .vehicle-box.unavailable {
-            opacity: 0.72;
-            border-color: #f44336;
-        }
-
-        .vehicle-type {
-            color: var(--text-muted);
-            font-size: 13px;
-            margin-top: 2px;
-        }
-
-        .status-ok {
-            color: #4CAF50;
-            font-weight: bold;
-        }
-
-        .status-ko {
-            color: #f44336;
-            font-weight: bold;
-        }
-
         .btn-rent {
             background: var(--primary-orange);
             color: white;
@@ -136,12 +115,6 @@
             width: 100%;
             margin-top: 10px;
             font-weight: bold;
-        }
-
-        .btn-rent:disabled {
-            background: #555;
-            cursor: not-allowed;
-            opacity: 0.7;
         }
 
         .btn-reserve {
@@ -156,21 +129,8 @@
             font-weight: bold;
         }
 
-        .btn-reserve:disabled {
-            background: #555;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
         .custom-orange-marker {
             background-color: #FF5722;
-            border: 2px solid white;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-        }
-
-        .custom-red-marker {
-            background-color: #f44336;
             border: 2px solid white;
             border-radius: 50% 50% 50% 0;
             transform: rotate(-45deg);
@@ -273,12 +233,6 @@
             cursor: pointer;
         }
 
-        .btn-confirm-rental:disabled {
-            background: #555;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
         .btn-change-vehicle {
             flex: 1;
             background: #333;
@@ -309,9 +263,7 @@
     <div class="main-workspace">
         <div class="sidebar-fleet">
             <div class="filter-section">
-                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">
-                    RICERCA DISPONIBILITÀ
-                </div>
+                <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">RICERCA DISPONIBILITÀ</div>
 
                 <label>INIZIO PREVISTO</label>
                 <input type="datetime-local" id="filtro-inizio">
@@ -377,19 +329,10 @@
         );
 
         const map = L.map('map').setView([41.1171, 16.8719], 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-            .addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         const orangeIcon = L.divIcon({
             className: 'custom-orange-marker',
-            iconSize: [20, 20],
-            iconAnchor: [10, 20],
-            popupAnchor: [0, -20]
-        });
-
-        const redIcon = L.divIcon({
-            className: 'custom-red-marker',
             iconSize: [20, 20],
             iconAnchor: [10, 20],
             popupAnchor: [0, -20]
@@ -399,45 +342,6 @@
         const geojsonGroup = L.layerGroup().addTo(map);
 
         let veicoloSelezionato = null;
-
-        const veicoliDemo = [
-            {
-                codice: "SCOOTER-01",
-                nome: "Scooter Vespa Elettrica",
-                tipo: "Scooter",
-                stato: "Disponibile",
-                batteria: 86,
-                latitudine: 41.1171,
-                longitudine: 16.8719
-            },
-            {
-                codice: "AUTO-01",
-                nome: "Auto Fiat 500e",
-                tipo: "Auto",
-                stato: "Disponibile",
-                batteria: 74,
-                latitudine: 41.1205,
-                longitudine: 16.8698
-            },
-            {
-                codice: "MONO-01",
-                nome: "Monopattino Xiaomi Pro",
-                tipo: "Monopattino",
-                stato: "Disponibile",
-                batteria: 92,
-                latitudine: 41.1155,
-                longitudine: 16.8754
-            },
-            {
-                codice: "AUTO-02",
-                nome: "Auto Renault Zoe",
-                tipo: "Auto",
-                stato: "In uso",
-                batteria: 61,
-                latitudine: 41.1222,
-                longitudine: 16.8788
-            }
-        ];
 
         window.onload = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -481,10 +385,6 @@
             return statoNormalizzato === "disponibile";
         }
 
-        function getVeicoloDemoByCodice(codice) {
-            return veicoliDemo.find(v => String(v.codice) === String(codice));
-        }
-
         async function disegnaAreeMappa() {
             geojsonGroup.clearLayers();
 
@@ -523,68 +423,90 @@
             });
         }
 
-        function caricaVeicoliFlotta() {
+        async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
 
             const tipo = document.getElementById("tipo-veicolo").value;
-            const div = document.getElementById("lista-veicoli");
+            const startF = document.getElementById("filtro-inizio").value;
+            const endF = document.getElementById("filtro-fine").value;
 
-            div.innerHTML = "";
-
-            let veicoliFiltrati = veicoliDemo;
+            let query = supabaseClient.from("veicoli").select("*");
 
             if (tipo !== "Tutti") {
-                veicoliFiltrati = veicoliDemo.filter(v => v.tipo === tipo);
+                query = query.eq("tipo", tipo);
             }
 
-            veicoliFiltrati.forEach(v => {
-                const disponibile = statoDisponibile(v.stato);
+            const { data: veicoli } = await query;
+
+            const { data: prenotazioni } = await supabaseClient
+                .from("prenotazioni")
+                .select("*");
+
+            const div = document.getElementById("lista-veicoli");
+            div.innerHTML = "";
+
+            const eseguiFiltro = startF && endF;
+            const sRicerca = eseguiFiltro ? new Date(startF.replace('Z', '')).getTime() : 0;
+            const eRicerca = eseguiFiltro ? new Date(endF.replace('Z', '')).getTime() : 0;
+
+            veicoli?.forEach(v => {
+                if (v.stato === "In uso") return;
+
+                let isOccupato = false;
+
+                if (eseguiFiltro) {
+                    prenotazioni?.forEach(p => {
+                        if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
+                            const dataInizioPulita = p.data_inizio_prevista
+                                ? p.data_inizio_prevista.split('.')[0].replace('Z', '')
+                                : '';
+
+                            const dataFinePulita = p.data_fine_prevista
+                                ? p.data_fine_prevista.split('.')[0].replace('Z', '')
+                                : '';
+
+                            const ps = new Date(dataInizioPulita).getTime();
+                            const pe = new Date(dataFinePulita).getTime();
+
+                            if (sRicerca < pe && eRicerca > ps) {
+                                isOccupato = true;
+                            }
+                        }
+                    });
+                }
+
+                if (isOccupato) return;
+
+                const statoVisualizzato = v.stato || "Disponibile";
                 const costoMinuto = calcolaCostoMinuto(v);
 
-                const statoHtml = disponibile
-                    ? `<span class="status-ok">Disponibile</span>`
-                    : `<span class="status-ko">Non disponibile - Occupata</span>`;
-
                 div.innerHTML += `
-                    <div class="vehicle-box ${disponibile ? "" : "unavailable"}">
-                        <strong>${v.nome}</strong>
-                        <div class="vehicle-type">${v.tipo}</div>
-
-                        Stato: ${statoHtml}<br>
+                    <div class="vehicle-box">
+                        <strong>${v.nome}</strong><br>
+                        Stato: ${statoVisualizzato}<br>
                         Batteria: ${v.batteria}%<br>
                         Costo: ${costoMinuto.toFixed(2)} €/min<br>
-
-                        <button 
-                            class="btn-rent" 
-                            onclick="mostraDettaglioVeicolo('${v.codice}')"
-                            ${disponibile ? "" : "disabled"}>
-                            ${disponibile ? "Noleggia" : "Non disponibile"}
-                        </button>
-
-                        <button 
-                            class="btn-reserve" 
-                            onclick="gestisciPrenotazionePulsante('${v.codice}')"
-                            ${disponibile ? "" : "disabled"}>
-                            Prenota
-                        </button>
+                        <button class="btn-rent" onclick="mostraDettaglioVeicolo('${v.codice}')">Noleggia</button>
+                        <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button>
                     </div>
                 `;
 
                 if (v.latitudine && v.longitudine) {
-                    L.marker(
-                        [v.latitudine, v.longitudine],
-                        { icon: disponibile ? orangeIcon : redIcon }
-                    )
-                    .addTo(markerGroup)
-                    .bindPopup(`${v.nome}<br>${disponibile ? "Disponibile" : "Occupata"}`);
+                    L.marker([v.latitudine, v.longitudine], { icon: orangeIcon })
+                        .addTo(markerGroup)
+                        .bindPopup(v.nome);
                 }
             });
         }
 
         async function mostraDettaglioVeicolo(codice) {
-            const veicolo = getVeicoloDemoByCodice(codice);
+            const { data: veicolo, error } = await supabaseClient
+                .from("veicoli")
+                .select("*")
+                .eq("codice", codice)
+                .single();
 
-            if (!veicolo) {
+            if (error || !veicolo) {
                 alert("Impossibile caricare i dettagli del veicolo.");
                 return;
             }
@@ -595,7 +517,7 @@
             const stato = veicolo.stato || "Disponibile";
 
             document.getElementById("modal-nome-veicolo").innerText = veicolo.nome || codice;
-            document.getElementById("modal-stato-veicolo").innerText = statoDisponibile(stato) ? "Disponibile" : "Non disponibile - Occupata";
+            document.getElementById("modal-stato-veicolo").innerText = stato;
             document.getElementById("modal-batteria-veicolo").innerText = `${veicolo.batteria || 0}%`;
             document.getElementById("modal-costo-veicolo").innerText = `${costoMinuto.toFixed(2)} €/min`;
 
@@ -642,35 +564,44 @@
             const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
             const dataInizio = new Date().toISOString();
 
-            localStorage.setItem("noleggio_corrente_info", JSON.stringify({
-                id: null,
+            const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
                 utente_id: user.id,
+                veicolo_id: veicoloSelezionato.codice,
+                stato: "Attivo",
+                data_inizio: dataInizio
+            }]);
+
+            if (rentErr) {
+                alert("Errore durante l'avvio del noleggio: " + rentErr.message);
+                return;
+            }
+
+            const { error: vehicleErr } = await supabaseClient
+                .from("veicoli")
+                .update({ stato: "In uso" })
+                .eq("codice", veicoloSelezionato.codice);
+
+            if (vehicleErr) {
+                alert("Noleggio creato, ma errore nell'aggiornamento del veicolo: " + vehicleErr.message);
+                return;
+            }
+
+            localStorage.setItem("noleggio_corrente_info", JSON.stringify({
                 veicolo_id: veicoloSelezionato.codice,
                 nome: veicoloSelezionato.nome,
                 tipo: veicoloSelezionato.tipo,
                 batteria: veicoloSelezionato.batteria,
-                latitudine: veicoloSelezionato.latitudine,
-                longitudine: veicoloSelezionato.longitudine,
-                stato: "Attivo",
                 stato_iniziale: statoCorrente,
                 costo_minuto: costoMinuto,
                 secondi_motore: 0,
                 prezzo_corrente: 0,
-                data_inizio: dataInizio,
-                demo: true
+                data_inizio: dataInizio
             }));
 
             window.location.href = "noleggio-attivo.html";
         }
 
         async function gestisciPrenotazionePulsante(codice) {
-            const veicolo = getVeicoloDemoByCodice(codice);
-
-            if (!veicolo || !statoDisponibile(veicolo.stato)) {
-                alert("Questo veicolo non è disponibile per la prenotazione.");
-                return;
-            }
-
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
 
@@ -679,16 +610,34 @@
                 return;
             }
 
-            localStorage.setItem("prenotazione_demo", JSON.stringify({
-                veicolo_id: veicolo.codice,
-                nome: veicolo.nome,
-                tipo: veicolo.tipo,
-                data_inizio_prevista: startF + ":00",
-                data_fine_prevista: endF + ":00",
-                tipo_prenotazione: "Programmata"
-            }));
+            await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
+        }
 
-            alert("Prenotazione demo effettuata!");
+        async function avviaPrenotazione(codice, inizio, fine, istantanea) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            await supabaseClient.from("prenotazioni").insert([{
+                utente_id: user.id,
+                veicolo_id: codice,
+                data_inizio_prevista: inizio,
+                data_fine_prevista: fine,
+                tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata'
+            }]);
+
+            if (istantanea) {
+                await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "Prenotato" })
+                    .eq("codice", codice);
+            }
+
+            alert("Prenotazione effettuata!");
+            window.location.href = "mie-prenotazioni.html";
         }
 
         async function logout() {
