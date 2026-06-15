@@ -100,7 +100,6 @@ async function caricaVeicoliFlotta() {
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
-            // Definiamo il tempo di ricerca (filtro) in millisecondi UTC
             const sRicerca = new Date(startF).getTime();
             const eRicerca = new Date(endF).getTime();
             
@@ -111,14 +110,17 @@ async function caricaVeicoliFlotta() {
                 
                 if (startF && endF) {
                     prenotazioni?.forEach(p => {
-                        if (p.veicolo_id === v.codice) {
-                            // IMPORTANTE: convertiamo le date del DB forzandole come stringhe ISO complete
-                            // Se nel DB hai "2026-06-15T22:00:00+02:00", new Date lo legge perfettamente
+                        // Forziamo entrambi in stringa e rimuoviamo spazi bianchi
+                        const idVeicoloInPrenotazione = String(p.veicolo_id).trim();
+                        const idVeicoloCorrente = String(v.codice).trim();
+                        
+                        if (idVeicoloInPrenotazione === idVeicoloCorrente) {
                             const ps = new Date(p.data_inizio_prevista).getTime();
                             const pe = new Date(p.data_fine_prevista).getTime();
                             
-                            // Se la ricerca (22:10-22:15) si sovrappone a una prenotazione (22:00-23:00)
-                            // La condizione (sRicerca < pe && eRicerca > ps) scatterà correttamente
+                            // Debug: apri la console (F12) per vedere se sta confrontando correttamente
+                            // console.log(`Confronto ${idVeicoloCorrente}: Ricerca(${sRicerca}-${eRicerca}) vs Prenotazione(${ps}-${pe})`);
+                            
                             if (sRicerca < pe && eRicerca > ps) {
                                 isOccupato = true;
                             }
