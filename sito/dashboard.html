@@ -105,16 +105,17 @@
                 
                 let isOccupato = false;
                 if (startF && endF) {
-                    // Conversione in millisecondi per confronto assoluto
+                    // Conversione in millisecondi UTC per un confronto matematico assoluto
                     let s = new Date(startF).getTime();
                     let e = new Date(endF).getTime();
                     
                     prenotazioni?.forEach(p => {
                         if (p.veicolo_id === v.codice) {
+                            // Anche le date del database vengono convertite in millisecondi UTC
                             let ps = new Date(p.data_inizio_prevista).getTime();
                             let pe = new Date(p.data_fine_prevista).getTime();
                             
-                            // Logica di sovrapposizione rigorosa
+                            // Logica di sovrapposizione: se l'intervallo richiesto tocca quello prenotato
                             if (s < pe && e > ps) isOccupato = true;
                         }
                     });
