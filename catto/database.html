@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Izalith - Database Master</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-orange: #FF5722;
+            --primary-orange-hover: #E64A19;
+            --dark-bg: #121212;
+            --card-bg: #1E1E1E;
+            --item-bg: #323232;
+            --item-hover: #424242;
+            --text-light: #FFFFFF;
+            --text-muted: #AAAAAA;
+        }
+
+        body { background: var(--dark-bg); color: var(--text-light); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* HEADER */
+        .iz-header { background-color: #000; padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--primary-orange); z-index: 10; }
+        .iz-logo { font-size: 20px; font-weight: bold; color: white; display: flex; align-items: center; gap: 10px; }
+        .iz-logo span { color: var(--primary-orange); }
+
+        /* LAYOUT PRINCIPALE */
+        .iz-main { display: flex; flex: 1; overflow: hidden; }
+        
+        /* SIDEBAR (TABS) */
+        .iz-sidebar { width: 250px; background: var(--card-bg); padding: 20px 0; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .iz-tab { padding: 15px 25px; cursor: pointer; font-weight: bold; color: var(--text-muted); transition: 0.2s; display: flex; align-items: center; gap: 10px; border-left: 4px solid transparent; }
+        .iz-tab:hover { background: var(--item-bg); color: var(--text-light); }
+        .iz-tab.active { background: rgba(255, 87, 34, 0.1); color: var(--primary-orange); border-left-color: var(--primary-orange); }
+
+        /* AREA CONTENUTO */
+        .iz-content { flex: 1; padding: 30px; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
+        
+        /* ACTION BAR (Bottoni) */
+        .iz-action-bar { display: flex; gap: 10px; margin-bottom: 20px; background: var(--card-bg); padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .iz-btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-add { background: var(--primary-orange); color: #fff; }
+        .btn-add:hover { background: var(--primary-orange-hover); }
+        .btn-edit { background: #2196F3; color: #fff; opacity: 0.5; pointer-events: none; }
+        .btn-edit.enabled { opacity: 1; pointer-events: auto; }
+        .btn-edit.enabled:hover { background: #1976D2; }
+        .btn-delete { background: #f44336; color: #fff; opacity: 0.5; pointer-events: none; }
+        .btn-delete.enabled { opacity: 1; pointer-events: auto; }
+        .btn-delete.enabled:hover { background: #d32f2f; }
+
+        /* TABELLA DATI */
+        .iz-table-container { background: var(--card-bg); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.3); flex: 1; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { background: #2a2a2a; padding: 15px; color: var(--primary-orange); font-size: 13px; text-transform: uppercase; position: sticky; top: 0; z-index: 1; }
+        td { padding: 15px; border-bottom: 1px solid #333; font-size: 14px; color: #ddd; }
+        tr { cursor: pointer; transition: 0.2s; }
+        tr:hover { background: var(--item-hover); }
+        
+        /* Riga Selezionata */
+        tr.selected { background: rgba(255, 87, 34, 0.15); border-left: 4px solid var(--primary-orange); }
+        tr.selected td { color: #fff; font-weight: 500; }
+
+        /* MODULO AGGIUNGI/MODIFICA (Scomparsa) */
+        .iz-form-panel { position: absolute; right: -400px; top: 0; width: 400px; height: 100%; background: #222; border-left: 2px solid var(--primary-orange); box-shadow: -5px 0 20px rgba(0,0,0,0.5); padding: 30px; transition: right 0.3s ease; z-index: 100; display: flex; flex-direction: column; }
+        .iz-form-panel.open { right: 0; }
+        .iz-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #444; padding-bottom: 15px; }
+        .iz-form-header h3 { margin: 0; color: var(--primary-orange); }
+        .btn-close { background: transparent; border: none; color: #aaa; font-size: 20px; cursor: pointer; }
+        .btn-close:hover { color: #fff; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; text-transform: uppercase; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; background: #121212; border: 1px solid #555; border-radius: 6px; color: white; font-family: sans-serif; box-sizing: border-box; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary-orange); }
+
+        /* Pop-up Notifiche */
+        .popup-msg { display: none; position: fixed; bottom: 30px; right: 30px; background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 2000; font-weight: bold; transition: 0.3s; border-left: 5px solid var(--primary-orange); }
+    </style>
+</head>
+<body>
+
+    <div id="popup-notifica" class="popup-msg">Messaggio di sistema</div>
+
+    <header class="iz-header">
+        <div class="iz-logo">
+            <i class="fa-solid fa-database"></i> PROJECT <span>IZALITH</span>
+        </div>
+        <div style="font-weight: bold; color: #aaa;">Database Master Centrale</div>
+    </header>
+
+    <div class="iz-main">
+        
+        <div class="iz-sidebar">
+            <div class="iz-tab active" onclick="cambiaTab('utenti', this)">
+                <i class="fa-solid fa-users"></i> Gestione Utenti
+            </div>
+            <div class="iz-tab" onclick="cambiaTab('veicoli', this)">
+                <i class="fa-solid fa-car"></i> Flotta Veicoli
+            </div>
+            <div class="iz-tab" onclick="cambiaTab('noleggi', this)">
+                <i class="fa-solid fa-route"></i> Storico Noleggi
+            </div>
+        </div>
+
+        <div class="iz-content">
+            
+            <div class="iz-action-bar">
+                <button class="iz-btn btn-add" onclick="apriModulo('add')"><i class="fa-solid fa-plus"></i> Aggiungi Nuovo</button>
+                <button class="iz-btn btn-edit" id="btn-edit" onclick="apriModulo('edit')"><i class="fa-solid fa-pen"></i> Modifica Selezionato</button>
+                <button class="iz-btn btn-delete" id="btn-delete" onclick="eliminaDato()"><i class="fa-solid fa-trash"></i> Elimina Selezionato</button>
+            </div>
+
+            <div class="iz-table-container">
+                <table>
+                    <thead id="table-head">
+                        </thead>
+                    <tbody id="table-body">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="iz-form-panel" id="form-panel">
+                <div class="iz-form-header">
+                    <h3 id="form-title">Aggiungi Dati</h3>
+                    <button class="btn-close" onclick="chiudiModulo()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div id="dynamic-form-fields" style="flex: 1; overflow-y: auto;">
+                    </div>
+
+                <button class="iz-btn btn-add" style="width: 100%; justify-content: center;" onclick="salvaDato()"><i class="fa-solid fa-save"></i> SALVA DATI</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DATABASE SIMULATO IN MEMORIA ---
+        const db = {
+            utenti: [
+                { id: "U-101", nome: "Mario Rossi", email: "mario@email.it", patente: "Approvata", stato: "Attivo" },
+                { id: "U-102", nome: "Laura Bianchi", email: "laura@email.it", patente: "In Revisione", stato: "Sospeso" }
+            ],
+            veicoli: [
+                { id: "IZ-01", modello: "Izalith Sedan Car", batteria: "85%", posizione: "Taranto Centro", stato: "Disponibile" },
+                { id: "IZ-03", modello: "Scooter EV E-1", batteria: "60%", posizione: "Borgo Antico", stato: "In Uso" }
+            ],
+            noleggi: [
+                { id: "N-500", utente: "U-101", veicolo: "IZ-01", data: "15 Giu 2026", importo: "€ 4.50" }
+            ]
+        };
+
+        // Struttura delle colonne per ogni tabella
+        const schemas = {
+            utenti: ["ID", "Nome Completo", "Email", "Stato Patente", "Stato Account"],
+            veicoli: ["Codice", "Modello Veicolo", "Livello Batteria", "Posizione GPS", "Stato"],
+            noleggi: ["ID Noleggio", "Utente", "Veicolo", "Data", "Importo"]
+        };
+
+        let currentTab = 'utenti';
+        let selectedRowId = null;
+        let formMode = 'add'; // 'add' o 'edit'
+
+        // --- FUNZIONI DI RENDER ---
+        function cambiaTab(tabName, element) {
+            document.querySelectorAll('.iz-tab').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            currentTab = tabName;
+            deselezionaTutto();
+            renderTable();
+            chiudiModulo();
+        }
+
+        function renderTable() {
+            const tHead = document.getElementById('table-head');
+            const tBody = document.getElementById('table-body');
+            
+            // Render Intestazione
+            tHead.innerHTML = `<tr>${schemas[currentTab].map(col => `<th>${col}</th>`).join('')}</tr>`;
+            
+            // Render Righe
+            const dati = db[currentTab];
+            tBody.innerHTML = '';
+            
+            if (dati.length === 0) {
+                tBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">Nessun dato presente in questo registro.</td></tr>`;
+                return;
+            }
+
+            dati.forEach(row => {
+                const keys = Object.keys(row);
+                const idRow = row[keys[0]]; // Assume the first key is always the ID
+                
+                const tr = document.createElement('tr');
+                tr.id = `row-${idRow}`;
+                tr.onclick = () => toggleSelezione(idRow);
+                
+                keys.forEach(k => {
+                    const td = document.createElement('td');
+                    // Badge colorati per gli stati
+                    if (k === 'stato') {
+                        let color = row[k] === 'Attivo' || row[k] === 'Disponibile' ? '#4CAF50' : '#FFC107';
+                        td.innerHTML = `<span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; color:${color}; font-weight:bold; font-size:12px;">${row[k]}</span>`;
+                    } else {
+                        td.innerText = row[k];
+                    }
+                    tr.appendChild(td);
+                });
+                
+                tBody.appendChild(tr);
+            });
+        }
+
+        // --- LOGICA SELEZIONE / DESELEZIONE ---
+        function toggleSelezione(id) {
+            const riga = document.getElementById(`row-${id}`);
+            
+            // Se clicco la riga già selezionata, la deseleziono
+            if (selectedRowId === id) {
+                deselezionaTutto();
+                return;
+            }
+
+            // Deseleziona le altre
+            document.querySelectorAll('tr').forEach(tr => tr.classList.remove('selected'));
+            
+            // Seleziona la nuova
+            riga.classList.add('selected');
+            selectedRowId = id;
+            
+            // Abilita i bottoni Edit e Delete
+            document.getElementById('btn-edit').classList.add('enabled');
+            document.getElementById('btn-delete').classList.add('enabled');
+        }
+
+        function deselezionaTutto() {
+            selectedRowId = null;
+            document.querySelectorAll('tr').forEach(tr => tr.classList.remove('selected'));
+            document.getElementById('btn-edit').classList.remove('enabled');
+            document.getElementById('btn-delete').classList.remove('enabled');
+            chiudiModulo();
+        }
+
+        // --- LOGICA MODULO (AGGIUNGI/MODIFICA) ---
+        function apriModulo(mode) {
+            formMode = mode;
+            const panel = document.getElementById('form-panel');
+            const title = document.getElementById('form-title');
+            const fieldsContainer = document.getElementById('dynamic-form-fields');
+            
+            title.innerText = mode === 'add' ? `Aggiungi a ${currentTab.toUpperCase()}` : `Modifica Record`;
+            fieldsContainer.innerHTML = ''; // Pulisce i campi vecchi
+
+            // Trova il record se siamo in Edit
+            let recordData = {};
+            if (mode === 'edit' && selectedRowId) {
+                recordData = db[currentTab].find(item => item[Object.keys(item)[0]] === selectedRowId);
+            }
+
+            // Genera i campi input dinamicamente in base allo schema della tabella attuale
+            const templateRow = db[currentTab][0] || {}; // Prende le chiavi dal primo elemento (se esiste)
+            const keys = db[currentTab].length > 0 ? Object.keys(templateRow) : getKeysFallback();
+
+            keys.forEach((key, index) => {
+                const isIdField = index === 0; // Il primo campo è l'ID
+                
+                let val = mode === 'edit' ? recordData[key] : '';
+                // Se è ADD, proponi un ID automatico di base
+                if (mode === 'add' && isIdField) {
+                    val = currentTab === 'utenti' ? 'U-' + Math.floor(Math.random()*1000) : 'IZ-' + Math.floor(Math.random()*100);
+                }
+
+                fieldsContainer.innerHTML += `
+                    <div class="form-group">
+                        <label>${schemas[currentTab][index]}</label>
+                        <input type="text" id="input-${key}" value="${val}" ${isIdField && mode === 'edit' ? 'readonly style="opacity:0.5;"' : ''} placeholder="Inserisci dato...">
+                    </div>
+                `;
+            });
+
+            panel.classList.add('open');
+        }
+
+        function getKeysFallback() {
+            if(currentTab === 'utenti') return ['id', 'nome', 'email', 'patente', 'stato'];
+            if(currentTab === 'veicoli') return ['id', 'modello', 'batteria', 'posizione', 'stato'];
+            return ['id', 'utente', 'veicolo', 'data', 'importo'];
+        }
+
+        function chiudiModulo() {
+            document.getElementById('form-panel').classList.remove('open');
+        }
+
+        // --- SALVATAGGIO ED ELIMINAZIONE DATI ---
+        function salvaDato() {
+            const keys = db[currentTab].length > 0 ? Object.keys(db[currentTab][0]) : getKeysFallback();
+            const newData = {};
+            
+            // Raccoglie i dati dagli input
+            keys.forEach(key => {
+                newData[key] = document.getElementById(`input-${key}`).value;
+            });
+
+            if (formMode === 'add') {
+                db[currentTab].push(newData);
+                mostraNotifica("Record aggiunto con successo!");
+            } else if (formMode === 'edit') {
+                const index = db[currentTab].findIndex(item => item[Object.keys(item)[0]] === selectedRowId);
+                if (index > -1) {
+                    db[currentTab][index] = newData;
+                    mostraNotifica("Record aggiornato!");
+                }
+            }
+
+            chiudiModulo();
+            deselezionaTutto();
+            renderTable();
+        }
+
+        function eliminaDato() {
+            if (!selectedRowId) return;
+            
+            if (confirm("Sei sicuro di voler eliminare questo record?")) {
+                const keyId = Object.keys(db[currentTab][0])[0];
+                db[currentTab] = db[currentTab].filter(item => item[keyId] !== selectedRowId);
+                
+                mostraNotifica("Record eliminato.");
+                deselezionaTutto();
+                renderTable();
+            }
+        }
+
+        // --- NOTIFICHE ---
+        function mostraNotifica(testo) {
+            const popup = document.getElementById("popup-notifica");
+            popup.innerText = testo;
+            popup.style.display = "block";
+            
+            setTimeout(() => {
+                popup.style.opacity = "0";
+                setTimeout(() => { popup.style.display = "none"; popup.style.opacity = "1"; }, 300);
+            }, 3000);
+        }
+
+        // Init
+        renderTable();
+    </script>
+</body>
+</html>

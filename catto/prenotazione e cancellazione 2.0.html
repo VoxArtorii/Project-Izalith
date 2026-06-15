@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prenotazione Veicolo - Project Izalith</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-orange: #FF5722;
+            --primary-orange-hover: #E64A19;
+            --dark-bg: #121212;
+            --card-bg: #1E1E1E;
+            --item-bg: #323232;
+            --item-hover: #424242;
+        }
+
+        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding-top: 50px; margin: 0; }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 12px; width: 450px; text-align: center; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        
+        /* Bottoni */
+        .btn-confirm { background: var(--primary-orange); color: white; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-confirm:hover { background: var(--primary-orange-hover); }
+        
+        .btn-cancel { background: #f44336; color: white; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-cancel:hover { background: #d32f2f; }
+
+        .btn-pause { background: #FFC107; color: black; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-pause:hover { background: #FFB300; }
+
+        .btn-resume { background: #4CAF50; color: white; border: none; padding: 15px; width: 100%; margin-top: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.2s; }
+        .btn-resume:hover { background: #43A047; }
+        
+        .btn-refresh { background: #555; color: white; border: none; padding: 10px; width: 100%; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-refresh:hover { background: #777; }
+        
+        /* Lista Selezionabile */
+        .veh-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .veh-item { background: var(--item-bg); padding: 15px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; text-align: left; transition: all 0.2s ease; display: flex; justify-content: space-between; align-items: center; }
+        .veh-item:hover { background: var(--item-hover); }
+        .veh-item.selected { border-color: var(--primary-orange); background: rgba(255, 87, 34, 0.1); transform: scale(1.02); }
+        
+        .veh-info h4 { margin: 0 0 5px 0; font-size: 16px; color: #fff; }
+        .veh-info p { margin: 0; font-size: 12px; color: #aaa; }
+        
+        /* Modulo Compilabile */
+        .form-section { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; display: none; animation: fadeIn 0.3s ease; border-left: 4px solid var(--primary-orange); }
+        .form-section.active { display: block; }
+        .input-field { width: 100%; padding: 12px; margin-top: 8px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #555; background: #121212; color: white; box-sizing: border-box; font-family: sans-serif; }
+        .input-field:focus { outline: none; border-color: var(--primary-orange); }
+
+        /* Toggles per Scelta Data/Ora */
+        .iz-extra-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #444; border-radius: 8px; margin-top: 10px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; background: #1E1E1E; }
+        .iz-extra-row:hover { background: #2a2a2a; border-color: #555; }
+        .iz-extra-row.active { border-color: var(--primary-orange); background: rgba(255, 87, 34, 0.1); }
+        
+        .iz-toggle-box { width: 40px; height: 20px; background: #555; border-radius: 12px; position: relative; margin-right: 15px; flex-shrink: 0; transition: 0.3s; }
+        .iz-toggle-box::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .iz-extra-row.active .iz-toggle-box { background: var(--primary-orange); }
+        .iz-extra-row.active .iz-toggle-box::after { transform: translateX(20px); }
+
+        .iz-extra-info { flex: 1; }
+        .iz-extra-info h4 { margin: 0 0 4px 0; font-size: 14px; color: #fff; }
+        .iz-extra-info p { margin: 0; font-size: 11px; color: #aaa; }
+        
+        /* Pop-up Notifiche */
+        .popup-msg { display: none; position: fixed; top: 20px; background: #323232; color: #fff; padding: 15px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; font-weight: bold; transition: 0.3s; }
+        .popup-success { border-left: 5px solid var(--primary-orange); }
+        .popup-error { border-left: 5px solid #f44336; }
+        .popup-info { border-left: 5px solid #555; }
+        .popup-warning { border-left: 5px solid #FFC107; }
+
+        .hidden { display: none !important; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Scrollbar custom */
+        .veh-list::-webkit-scrollbar { width: 6px; }
+        .veh-list::-webkit-scrollbar-track { background: var(--card-bg); }
+        .veh-list::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="popup-notifica" class="popup-msg popup-info">Messaggio di sistema</div>
+
+    <div class="card" id="content">
+        <h3>Localizzazione in corso...</h3>
+        <p style="color: #aaa; font-size: 14px;">Stiamo calcolando le distanze col GPS</p>
+    </div>
+
+    <script>
+        // Configurazione Supabase
+        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        
+        let utenteLoggato = null;
+        let prenotazioneAttiva = null;
+        let veicoliDisponibili = [];
+        let veicoloSelezionato = null;
+        let isScheduled = false; // Stato dell'interruttore pianificazione
+        let statoNoleggioAttivo = 'none'; // 'none', 'active', 'paused'
+        let userPos = null; 
+
+        async function init() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            utenteLoggato = user || { id: 'test-user-123', email: 'test@izalith.it' };
+
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userPos = [position.coords.longitude, position.coords.latitude];
+                        verificaPrenotazioni();
+                    },
+                    (error) => {
+                        userPos = [17.2450, 40.4715]; // Fallback Taranto
+                        verificaPrenotazioni();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                userPos = [17.2450, 40.4715];
+                verificaPrenotazioni();
+            }
+        }
+
+        async function verificaPrenotazioni() {
+            const { data: prenotazione, error } = await supabaseClient
+                .from("prenotazioni")
+                .select("*")
+                .eq("utente_id", utenteLoggato.id)
+                .in("stato", ["Attiva", "In Corso", "In Pausa"])
+                .single();
+
+            if (prenotazione) {
+                prenotazioneAttiva = prenotazione;
+                if (prenotazione.stato === "Attiva") {
+                    mostraPrenotazioneAttiva();
+                } else {
+                    statoNoleggioAttivo = prenotazione.stato === "In Pausa" ? "paused" : "active";
+                    mostraNoleggioInCorso();
+                }
+            } else {
+                prenotazioneAttiva = null;
+                statoNoleggioAttivo = 'none';
+                caricaVeicoliDisponibili();
+            }
+        }
+
+        async function caricaVeicoliDisponibili() {
+            document.getElementById("content").innerHTML = `<h3>Cerco veicoli nelle vicinanze...</h3>`;
+            
+            const { data: veicoli, error } = await supabaseClient
+                .from("veicoli")
+                .select("*")
+                .eq("stato", "Disponibile");
+            
+            if (error || !veicoli || veicoli.length === 0) {
+                veicoliDisponibili = [
+                    { codice: 'IZ-01', modello: 'Izalith Sedan Car', batteria: '85%', latitudine: 40.4735, longitudine: 17.2450 },
+                    { codice: 'IZ-03', modello: 'Scooter EV E-1', batteria: '60%', latitudine: 40.4680, longitudine: 17.2500 },
+                    { codice: 'IZ-05', modello: 'Monopattino Kick', batteria: '98%', latitudine: 40.4760, longitudine: 17.2430 }
+                ];
+            } else {
+                veicoliDisponibili = veicoli;
+            }
+
+            const puntoUtente = turf.point(userPos);
+            veicoliDisponibili.forEach(v => {
+                let vLat = v.latitudine || v.lat;
+                let vLng = v.longitudine || v.lng;
+
+                if (vLat && vLng) {
+                    const puntoVeicolo = turf.point([vLng, vLat]);
+                    v.distanza_metri = turf.distance(puntoUtente, puntoVeicolo, { units: 'meters' });
+                } else {
+                    v.distanza_metri = Infinity;
+                }
+            });
+
+            veicoliDisponibili.sort((a, b) => a.distanza_metri - b.distanza_metri);
+            mostraListaVeicoli();
+        }
+
+        function formattaDistanza(metri) {
+            if (metri === Infinity) return "Pos. Sconosciuta";
+            if (metri >= 1000) return (metri / 1000).toFixed(1) + " km";
+            return Math.round(metri) + " m";
+        }
+
+        function mostraListaVeicoli() {
+            veicoloSelezionato = null;
+            isScheduled = false;
+
+            let html = `
+                <h3 style="margin-bottom: 5px;">Veicoli Vicini a Te</h3>
+                <p style="color: #aaa; font-size: 13px; margin-top: 0;">Seleziona un veicolo per prenotarlo</p>
+                <div class="veh-list" id="lista-veicoli">
+            `;
+
+            veicoliDisponibili.forEach(v => {
+                let nomeVeicolo = v.modello || v.nome || v.model || 'Modello Sconosciuto';
+                let idVeicolo = v.codice || v.id_veicolo || v.id || 'N/D';
+                let livelloBatteria = v.batteria || v.soc || v.battery || 'N/A';
+
+                html += `
+                    <div class="veh-item" id="veh-${idVeicolo}" onclick="toggleSelezione('${idVeicolo}')">
+                        <div class="veh-info">
+                            <h4>${nomeVeicolo}</h4>
+                            <p>ID: ${idVeicolo} | Batteria: ${livelloBatteria}</p>
+                        </div>
+                        <div style="color: var(--primary-orange); font-size: 12px; font-weight: bold; text-align:right;">
+                            <i class="fa-solid fa-location-dot"></i><br>
+                            ${formattaDistanza(v.distanza_metri)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+
+            // Modulo compilabile (nascosto di default)
+            html += `
+                <div id="modulo-prenotazione" class="form-section">
+                    
+                    <div class="iz-extra-row" id="toggle-schedule" onclick="toggleSchedule()">
+                        <div class="iz-toggle-box"></div>
+                        <div class="iz-extra-info">
+                            <h4>Pianifica in anticipo</h4>
+                            <p>Scegli data e ora della partenza</p>
+                        </div>
+                    </div>
+
+                    <div id="schedule-fields" class="hidden" style="margin-bottom: 15px;">
+                        <label style="color: #aaa; font-size: 12px;">Data di partenza:</label>
+                        <input type="date" id="book-date" class="input-field">
+                        
+                        <label style="color: #aaa; font-size: 12px;">Ora di partenza:</label>
+                        <input type="time" id="book-time" class="input-field">
+                    </div>
+
+                    <label style="color: #aaa; font-size: 12px;">Tempo stimato per raggiungere il veicolo:</label>
+                    <select id="tempo-arrivo" class="input-field">
+                        <option value="5">Entro 5 minuti</option>
+                        <option value="10">Entro 10 minuti</option>
+                        <option value="15">Entro 15 minuti (Max)</option>
+                    </select>
+                    
+                    <button class="btn-confirm" onclick="confermaPrenotazione()">CONFERMA PRENOTAZIONE</button>
+                </div>
+            `;
+
+            html += `<button class="btn-refresh" onclick="caricaVeicoliDisponibili()"><i class="fa-solid fa-rotate-right"></i> Aggiorna Mappa</button>`;
+            
+            document.getElementById("content").innerHTML = html;
+        }
+
+        function toggleSelezione(codice) {
+            const modulo = document.getElementById("modulo-prenotazione");
+            
+            if (veicoloSelezionato === codice) {
+                document.getElementById(`veh-${codice}`).classList.remove('selected');
+                veicoloSelezionato = null;
+                modulo.classList.remove('active');
+                return;
+            }
+
+            document.querySelectorAll('.veh-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`veh-${codice}`).classList.add('selected');
+            veicoloSelezionato = codice;
+            modulo.classList.add('active');
+        }
+
+        // Funzione per mostrare/nascondere i campi Data e Ora
+        function toggleSchedule() {
+            isScheduled = !isScheduled;
+            const rowEl = document.getElementById('toggle-schedule');
+            const fieldsEl = document.getElementById('schedule-fields');
+            
+            if(isScheduled) {
+                rowEl.classList.add('active');
+                fieldsEl.classList.remove('hidden');
+            } else {
+                rowEl.classList.remove('active');
+                fieldsEl.classList.add('hidden');
+            }
+        }
+
+        async function confermaPrenotazione() {
+            if (!veicoloSelezionato) return;
+
+            let scadenzaTime;
+            
+            if (isScheduled) {
+                const bookDate = document.getElementById("book-date").value;
+                const bookTime = document.getElementById("book-time").value;
+                if(!bookDate || !bookTime) {
+                    mostraNotifica("Seleziona data e ora per la pianificazione.", "popup-error");
+                    return;
+                }
+                scadenzaTime = new Date(`${bookDate}T${bookTime}`);
+                mostraNotifica(`Veicolo pianificato per il ${bookDate} alle ${bookTime}`, 'popup-success');
+            } else {
+                const tempoArrivo = document.getElementById("tempo-arrivo").value;
+                scadenzaTime = new Date(Date.now() + tempoArrivo * 60000);
+                mostraNotifica(`Prenotazione immediata in corso...`, 'popup-info');
+            }
+
+            try {
+                const { data, error } = await supabaseClient.from("prenotazioni").insert([{
+                    utente_id: utenteLoggato.id,
+                    veicolo_id: veicoloSelezionato,
+                    stato: "Attiva",
+                    scadenza: scadenzaTime.toISOString()
+                }]).select().single();
+
+                await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", veicoloSelezionato);
+
+                prenotazioneAttiva = data || { id: 'mock-123', veicolo_id: veicoloSelezionato, scadenza: scadenzaTime.toISOString() };
+                mostraPrenotazioneAttiva();
+
+            } catch (err) {
+                // Anche in caso di errore (es. DB locale non configurato), eseguiamo il mockup visivo per mostrare l'UI
+                prenotazioneAttiva = { id: 'mock-123', veicolo_id: veicoloSelezionato, scadenza: scadenzaTime.toISOString() };
+                mostraPrenotazioneAttiva();
+            }
+        }
+
+        function mostraPrenotazioneAttiva() {
+            const scadenza = new Date(prenotazioneAttiva.scadenza);
+            const ora = new Date();
+            let minutiRimasti = Math.max(0, Math.floor((scadenza - ora) / 60000));
+
+            let titolo = isScheduled ? "Veicolo Pianificato" : "Veicolo Riservato";
+
+            document.getElementById("content").innerHTML = `
+                <h3 style="color: var(--primary-orange); margin-bottom: 5px;">${titolo}</h3>
+                <p style="color: #aaa; font-size: 14px; margin-top: 0;">Hai bloccato il veicolo con successo.</p>
+                
+                <div style="background: #323232; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h2 style="margin: 0; font-size: 28px; color: #fff;">${prenotazioneAttiva.veicolo_id}</h2>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #555;">
+                        <span style="font-size: 12px; color: #aaa;">Data / Ora Scadenza:</span><br>
+                        <strong style="font-size: 18px; color: var(--primary-orange);">${scadenza.toLocaleString('it-IT')}</strong>
+                    </div>
+                </div>
+
+                <button class="btn-confirm" onclick="avviaNoleggioDaPrenotazione()"><i class="fa-solid fa-key"></i> AVVIA NOLEGGIO ORA</button>
+                <button class="btn-cancel" onclick="cancellaPrenotazione()">Annulla Prenotazione</button>
+            `;
+        }
+
+        // Funzione per convertire la prenotazione in noleggio attivo
+        async function avviaNoleggioDaPrenotazione() {
+            mostraNotifica("Sblocco veicolo in corso...", "popup-info");
+            
+            try {
+                // Aggiorna DB (se collegato)
+                await supabaseClient.from("prenotazioni").update({ stato: "In Corso" }).eq("id", prenotazioneAttiva.id);
+                statoNoleggioAttivo = 'active';
+                mostraNoleggioInCorso();
+                mostraNotifica("Motore acceso. Noleggio avviato!", "popup-success");
+            } catch (err) {
+                // Mockup
+                statoNoleggioAttivo = 'active';
+                mostraNoleggioInCorso();
+                mostraNotifica("Motore acceso. Noleggio avviato!", "popup-success");
+            }
+        }
+
+        // Schermata Unificata per Noleggio Attivo e In Pausa
+        function mostraNoleggioInCorso() {
+            const isPaused = statoNoleggioAttivo === 'paused';
+            const titolo = isPaused ? "Noleggio in Pausa" : "Noleggio in Corso";
+            const color = isPaused ? "#FFC107" : "#4CAF50";
+            const icon = isPaused ? "fa-pause" : "fa-car";
+            
+            // Bottone Dinamico per Toggle Pausa
+            const actionBtn = isPaused 
+                ? `<button class="btn-resume" onclick="togglePausaNoleggio()"><i class="fa-solid fa-play"></i> RIPRENDI MARCIA</button>`
+                : `<button class="btn-pause" onclick="togglePausaNoleggio()"><i class="fa-solid fa-pause"></i> METTI IN PAUSA</button>`;
+
+            document.getElementById("content").innerHTML = `
+                <h3 style="color: ${color}; margin-bottom: 5px;"><i class="fa-solid ${icon}"></i> ${titolo}</h3>
+                <p style="color: #aaa; font-size: 14px; margin-top: 0;">Veicolo assegnato a te.</p>
+                
+                <div style="background: #323232; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 5px solid ${color};">
+                    <h2 style="margin: 0; font-size: 28px; color: #fff;">${prenotazioneAttiva.veicolo_id}</h2>
+                    ${isPaused ? '<p style="font-size:12px; color:#aaa; margin-top:10px;">Portiere bloccate, tariffa ridotta attiva.</p>' : ''}
+                </div>
+
+                ${actionBtn}
+                <button class="btn-cancel" style="background:#222; border: 1px solid #f44336;" onclick="cancellaPrenotazione()"><i class="fa-solid fa-stop"></i> TERMINA E PAGA</button>
+            `;
+        }
+
+        // Funzione per il Toggle della Pausa (Metti in pausa / Riprendi)
+        async function togglePausaNoleggio() {
+            if (statoNoleggioAttivo === 'active') {
+                statoNoleggioAttivo = 'paused';
+                mostraNotifica("Veicolo messo in sosta. Porte bloccate.", "popup-warning");
+            } else {
+                statoNoleggioAttivo = 'active';
+                mostraNotifica("Veicolo sbloccato. Ripresa della marcia.", "popup-success");
+            }
+            
+            // In un caso reale aggiorneremmo Supabase qui: { stato: "In Pausa" / "In Corso" }
+            mostraNoleggioInCorso();
+        }
+
+        async function cancellaPrenotazione() {
+            mostraNotifica("Elaborazione in corso...", 'popup-info');
+
+            try {
+                if (prenotazioneAttiva && prenotazioneAttiva.id) {
+                    await supabaseClient.from("prenotazioni").update({ stato: "Cancellata" }).eq("id", prenotazioneAttiva.id);
+                    await supabaseClient.from("veicoli").update({ stato: "Disponibile" }).eq("codice", prenotazioneAttiva.veicolo_id);
+                }
+                
+                let msg = statoNoleggioAttivo !== 'none' ? "Noleggio terminato correttamente." : "Prenotazione annullata.";
+                mostraNotifica(msg, 'popup-success');
+                
+                prenotazioneAttiva = null;
+                statoNoleggioAttivo = 'none';
+                isScheduled = false;
+                caricaVeicoliDisponibili();
+            } catch (err) {
+                // Mockup
+                mostraNotifica("Azione completata.", 'popup-success');
+                prenotazioneAttiva = null;
+                statoNoleggioAttivo = 'none';
+                caricaVeicoliDisponibili();
+            }
+        }
+
+        function mostraNotifica(testo, classeColore) {
+            const popup = document.getElementById("popup-notifica");
+            popup.innerText = testo;
+            popup.className = `popup-msg ${classeColore}`;
+            popup.style.display = "block";
+            
+            setTimeout(() => {
+                popup.style.opacity = "0";
+                setTimeout(() => { popup.style.display = "none"; popup.style.opacity = "1"; }, 300);
+            }, 3000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
