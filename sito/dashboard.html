@@ -102,18 +102,24 @@
             
             veicoli?.forEach(v => {
                 if (v.stato === "In uso") return;
+                
                 let isOccupato = false;
                 if (startF && endF) {
+                    // Conversione in millisecondi per confronto assoluto
                     let s = new Date(startF).getTime();
                     let e = new Date(endF).getTime();
+                    
                     prenotazioni?.forEach(p => {
                         if (p.veicolo_id === v.codice) {
                             let ps = new Date(p.data_inizio_prevista).getTime();
                             let pe = new Date(p.data_fine_prevista).getTime();
+                            
+                            // Logica di sovrapposizione rigorosa
                             if (s < pe && e > ps) isOccupato = true;
                         }
                     });
                 }
+                
                 if (isOccupato) return;
 
                 div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
@@ -125,7 +131,6 @@
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
             
-            // Funzione per calcolare l'offset del fuso orario corrente (es: +02:00)
             const getTzOffset = () => {
                 const o = new Date().getTimezoneOffset();
                 return (o <= 0 ? '+' : '-') + String(Math.floor(Math.abs(o)/60)).padStart(2,'0') + ':' + String(Math.abs(o)%60).padStart(2,'0');
