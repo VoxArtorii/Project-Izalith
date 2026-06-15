@@ -4,37 +4,252 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Izalith - Mappa Veicoli</title>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        :root { --primary-orange: #ff5722; --dark-bg: #121212; --surface-card: #1E1E1E; --text-light: #FFFFFF; --text-muted: #A0A0A0; --border-color: #2C2C2C; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--dark-bg); color: var(--text-light); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .app-navbar { background-color: #0A0A0A; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); height: 65px; }
-        .nav-brand { font-weight: bold; font-size: 20px; cursor: pointer; color: var(--primary-orange); }
-        .nav-menu { display: flex; align-items: center; gap: 20px; }
-        .nav-item { color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .nav-item:hover { color: var(--primary-orange); }
-        .main-workspace { flex: 1; display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 65px); }
-        .sidebar-fleet { background: var(--surface-card); border-right: 1px solid var(--border-color); padding: 25px; overflow-y: auto; }
-        .map-wrapper { width: 100%; height: 100%; }
-        #map { width: 100%; height: 100%; filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2); }
-        .vehicle-box { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .btn-rent { background: var(--primary-orange); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
-        .btn-reserve { background: #2196F3; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold; }
-        .custom-orange-marker { background-color: #FF5722; border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
-        .filter-section { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
-        .filter-section label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 8px; font-weight: bold; }
-        .filter-section input { width: 100%; padding: 8px; background: #222; border: 1px solid var(--border-color); color: white; border-radius: 4px; margin-top: 3px; }
-        .btn-filter { background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
+        :root {
+            --primary-orange: #ff5722;
+            --dark-bg: #121212;
+            --surface-card: #1E1E1E;
+            --text-light: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --border-color: #2C2C2C;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-navbar {
+            background-color: #0A0A0A;
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            height: 65px;
+        }
+
+        .nav-brand {
+            font-weight: bold;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--primary-orange);
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-item {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            color: var(--primary-orange);
+        }
+
+        .main-workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            height: calc(100vh - 65px);
+        }
+
+        .sidebar-fleet {
+            background: var(--surface-card);
+            border-right: 1px solid var(--border-color);
+            padding: 25px;
+            overflow-y: auto;
+        }
+
+        .map-wrapper {
+            width: 100%;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            filter: grayscale(0.8) invert(1) hue-rotate(180deg) brightness(1.2);
+        }
+
+        .vehicle-box {
+            background: #121212;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .btn-rent {
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .btn-reserve {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .custom-orange-marker {
+            background-color: #FF5722;
+            border: 2px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+        }
+
+        .filter-section {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-section label {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .filter-section input {
+            width: 100%;
+            padding: 8px;
+            background: #222;
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+            margin-top: 3px;
+        }
+
+        .btn-filter {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 20px;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 430px;
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.6);
+        }
+
+        .modal-card h3 {
+            color: var(--primary-orange);
+            margin-bottom: 15px;
+        }
+
+        .vehicle-detail-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 0;
+            font-size: 14px;
+            gap: 10px;
+        }
+
+        .vehicle-detail-row span:first-child {
+            color: var(--text-muted);
+        }
+
+        .vehicle-detail-row span:last-child {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-confirm-rental {
+            flex: 1;
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-change-vehicle {
+            flex: 1;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
+
 <body>
     <nav class="app-navbar">
         <div class="nav-brand" onclick="window.location.href='dashboard.html'">IZALITH</div>
+
         <div class="nav-menu">
             <span id="saldo-display" style="color: var(--primary-orange); font-weight: bold; font-size: 14px;"></span>
             <a href="wallet.html" class="nav-item">💳 Wallet</a>
@@ -44,120 +259,352 @@
             <a href="#" class="nav-item" onclick="logout()">🚪 Logout</a>
         </div>
     </nav>
+
     <div class="main-workspace">
         <div class="sidebar-fleet">
             <div class="filter-section">
                 <div style="font-weight:bold; font-size:12px; color:var(--primary-orange);">RICERCA DISPONIBILITÀ</div>
+
                 <label>INIZIO PREVISTO</label>
                 <input type="datetime-local" id="filtro-inizio">
+
                 <label>FINE PREVISTA</label>
                 <input type="datetime-local" id="filtro-fine">
+
                 <button class="btn-filter" onclick="caricaVeicoliFlotta()">APPLICA FILTRO</button>
             </div>
+
             <div style="font-weight:bold; margin-bottom:15px;">FLOTTA ATTIVA</div>
+
             <select id="tipo-veicolo" style="width:100%; padding:8px; margin-bottom:15px; background:#222; color:white;" onchange="caricaVeicoliFlotta()">
                 <option value="Tutti">Tutti i Mezzi</option>
                 <option value="Auto">Auto</option>
                 <option value="Scooter">Scooter</option>
                 <option value="Monopattino">Monopattini</option>
             </select>
+
             <div id="lista-veicoli"></div>
         </div>
-        <div class="map-wrapper"><div id="map"></div></div>
+
+        <div class="map-wrapper">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <div id="modal-conferma-veicolo" class="modal-overlay">
+        <div class="modal-card">
+            <h3>Conferma veicolo</h3>
+
+            <div class="vehicle-detail-row">
+                <span>Nome veicolo</span>
+                <span id="modal-nome-veicolo">-</span>
+            </div>
+
+            <div class="vehicle-detail-row">
+                <span>Stato</span>
+                <span id="modal-stato-veicolo">-</span>
+            </div>
+
+            <div class="vehicle-detail-row">
+                <span>Batteria attuale</span>
+                <span id="modal-batteria-veicolo">-</span>
+            </div>
+
+            <div class="vehicle-detail-row">
+                <span>Costo al minuto</span>
+                <span id="modal-costo-veicolo">-</span>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-change-vehicle" onclick="scegliAltroVeicolo()">Scegli un altro veicolo</button>
+                <button class="btn-confirm-rental" onclick="confermaNoleggio()">Prosegui con il noleggio</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        const supabaseClient = supabase.createClient("https://iqadvwrvmecpetuqpysn.supabase.co", "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8");
+        const supabaseClient = supabase.createClient(
+            "https://iqadvwrvmecpetuqpysn.supabase.co",
+            "sb_publishable_VPxs6vLRl274cgZnVDi8PA_ncIulKe8"
+        );
+
         const map = L.map('map').setView([41.1171, 16.8719], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        const orangeIcon = L.divIcon({ className: 'custom-orange-marker', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] });
+        const orangeIcon = L.divIcon({
+            className: 'custom-orange-marker',
+            iconSize: [20, 20],
+            iconAnchor: [10, 20],
+            popupAnchor: [0, -20]
+        });
+
         const markerGroup = L.layerGroup().addTo(map);
         const geojsonGroup = L.layerGroup().addTo(map);
-        
+
+        let veicoloSelezionato = null;
+
         window.onload = async () => {
             const { data: { user } } = await supabaseClient.auth.getUser();
+
             if (user) {
-                const { data: utente } = await supabaseClient.from('utenti').select('wallet_balance').eq('id', user.id).single();
-                if (utente) document.getElementById("saldo-display").innerText = `Saldo: ${utente.wallet_balance.toFixed(2)}€`;
+                const { data: utente } = await supabaseClient
+                    .from('utenti')
+                    .select('wallet_balance')
+                    .eq('id', user.id)
+                    .single();
+
+                if (utente) {
+                    document.getElementById("saldo-display").innerText = `Saldo: ${utente.wallet_balance.toFixed(2)}€`;
+                }
             }
+
             await disegnaAreeMappa();
             caricaVeicoliFlotta();
         };
 
+        function calcolaCostoMinuto(veicolo) {
+            const tipo = (veicolo.tipo || "").toLowerCase();
+
+            if (tipo === "monopattino" || tipo === "monopattini") {
+                return 3.00;
+            }
+
+            if (tipo === "auto") {
+                return 7.00;
+            }
+
+            if (tipo === "scooter") {
+                return 5.00;
+            }
+
+            return 5.00;
+        }
+
+        function statoDisponibile(stato) {
+            const statoNormalizzato = (stato || "Disponibile").toLowerCase();
+            return statoNormalizzato === "disponibile";
+        }
+
         async function disegnaAreeMappa() {
             geojsonGroup.clearLayers();
 
-            // Carica e disegna le Aree di Sosta (Blu)
-            const { data: sosta } = await supabaseClient.from("aree_sosta").select("nome, area");
+            const { data: sosta } = await supabaseClient
+                .from("aree_sosta")
+                .select("nome, area");
+
             sosta?.forEach(s => {
                 const geometricData = typeof s.area === 'string' ? JSON.parse(s.area) : s.area;
+
                 L.geoJSON(geometricData, {
-                    style: { color: "#2196F3", fillColor: "#2196F3", fillOpacity: 0.2, weight: 2 }
+                    style: {
+                        color: "#2196F3",
+                        fillColor: "#2196F3",
+                        fillOpacity: 0.2,
+                        weight: 2
+                    }
                 }).bindPopup(`Punto Sosta: <b>${s.nome}</b>`).addTo(geojsonGroup);
             });
 
-            // Carica e disegna le Aree Vietate (Rosso)
-            const { data: vietate } = await supabaseClient.from("aree_vietate").select("nome, area");
+            const { data: vietate } = await supabaseClient
+                .from("aree_vietate")
+                .select("nome, area");
+
             vietate?.forEach(v => {
                 const geometricData = typeof v.area === 'string' ? JSON.parse(v.area) : v.area;
+
                 L.geoJSON(geometricData, {
-                    style: { color: "#f44336", fillColor: "#f44336", fillOpacity: 0.3, weight: 2 }
+                    style: {
+                        color: "#f44336",
+                        fillColor: "#f44336",
+                        fillOpacity: 0.3,
+                        weight: 2
+                    }
                 }).bindPopup(`ZONA VIETATA: <b>${v.nome}</b>`).addTo(geojsonGroup);
             });
         }
 
         async function caricaVeicoliFlotta() {
             markerGroup.clearLayers();
+
             const tipo = document.getElementById("tipo-veicolo").value;
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
-            
+
             let query = supabaseClient.from("veicoli").select("*");
-            if (tipo !== "Tutti") query = query.eq("tipo", tipo);
+
+            if (tipo !== "Tutti") {
+                query = query.eq("tipo", tipo);
+            }
+
             const { data: veicoli } = await query;
-            const { data: prenotazioni } = await supabaseClient.from("prenotazioni").select("*");
+
+            const { data: prenotazioni } = await supabaseClient
+                .from("prenotazioni")
+                .select("*");
 
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
-            
+
             const eseguiFiltro = startF && endF;
-            
             const sRicerca = eseguiFiltro ? new Date(startF.replace('Z', '')).getTime() : 0;
             const eRicerca = eseguiFiltro ? new Date(endF.replace('Z', '')).getTime() : 0;
-            
+
             veicoli?.forEach(v => {
                 if (v.stato === "In uso") return;
-                
+
                 let isOccupato = false;
-                
+
                 if (eseguiFiltro) {
                     prenotazioni?.forEach(p => {
                         if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
-                            const dataInizioPulita = p.data_inizio_prevista ? p.data_inizio_prevista.split('.')[0].replace('Z', '') : '';
-                            const dataFinePulita = p.data_fine_prevista ? p.data_fine_prevista.split('.')[0].replace('Z', '') : '';
-                            
+                            const dataInizioPulita = p.data_inizio_prevista
+                                ? p.data_inizio_prevista.split('.')[0].replace('Z', '')
+                                : '';
+
+                            const dataFinePulita = p.data_fine_prevista
+                                ? p.data_fine_prevista.split('.')[0].replace('Z', '')
+                                : '';
+
                             const ps = new Date(dataInizioPulita).getTime();
                             const pe = new Date(dataFinePulita).getTime();
-                            
+
                             if (sRicerca < pe && eRicerca > ps) {
                                 isOccupato = true;
                             }
                         }
                     });
                 }
-                
+
                 if (isOccupato) return;
 
-                div.innerHTML += `<div class="vehicle-box"><strong>${v.nome}</strong><br>Batteria: ${v.batteria}%<br><button class="btn-rent" onclick="avviaNoleggio('${v.codice}')">Noleggia</button><button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button></div>`;
-                if(v.latitudine && v.longitudine) L.marker([v.latitudine, v.longitudine], {icon: orangeIcon}).addTo(markerGroup).bindPopup(v.nome);
+                const statoVisualizzato = v.stato || "Disponibile";
+                const costoMinuto = calcolaCostoMinuto(v);
+
+                div.innerHTML += `
+                    <div class="vehicle-box">
+                        <strong>${v.nome}</strong><br>
+                        Stato: ${statoVisualizzato}<br>
+                        Batteria: ${v.batteria}%<br>
+                        Costo: ${costoMinuto.toFixed(2)} €/min<br>
+                        <button class="btn-rent" onclick="mostraDettaglioVeicolo('${v.codice}')">Noleggia</button>
+                        <button class="btn-reserve" onclick="gestisciPrenotazionePulsante('${v.codice}')">Prenota</button>
+                    </div>
+                `;
+
+                if (v.latitudine && v.longitudine) {
+                    L.marker([v.latitudine, v.longitudine], { icon: orangeIcon })
+                        .addTo(markerGroup)
+                        .bindPopup(v.nome);
+                }
             });
+        }
+
+        async function mostraDettaglioVeicolo(codice) {
+            const { data: veicolo, error } = await supabaseClient
+                .from("veicoli")
+                .select("*")
+                .eq("codice", codice)
+                .single();
+
+            if (error || !veicolo) {
+                alert("Impossibile caricare i dettagli del veicolo.");
+                return;
+            }
+
+            veicoloSelezionato = veicolo;
+
+            const costoMinuto = calcolaCostoMinuto(veicolo);
+            const stato = veicolo.stato || "Disponibile";
+
+            document.getElementById("modal-nome-veicolo").innerText = veicolo.nome || codice;
+            document.getElementById("modal-stato-veicolo").innerText = stato;
+            document.getElementById("modal-batteria-veicolo").innerText = `${veicolo.batteria || 0}%`;
+            document.getElementById("modal-costo-veicolo").innerText = `${costoMinuto.toFixed(2)} €/min`;
+
+            const btnConferma = document.querySelector(".btn-confirm-rental");
+
+            if (!statoDisponibile(stato)) {
+                btnConferma.disabled = true;
+                btnConferma.style.opacity = "0.5";
+                btnConferma.style.cursor = "not-allowed";
+            } else {
+                btnConferma.disabled = false;
+                btnConferma.style.opacity = "1";
+                btnConferma.style.cursor = "pointer";
+            }
+
+            document.getElementById("modal-conferma-veicolo").style.display = "flex";
+        }
+
+        function scegliAltroVeicolo() {
+            veicoloSelezionato = null;
+            document.getElementById("modal-conferma-veicolo").style.display = "none";
+        }
+
+        async function confermaNoleggio() {
+            if (!veicoloSelezionato) {
+                alert("Nessun veicolo selezionato.");
+                return;
+            }
+
+            const statoCorrente = veicoloSelezionato.stato || "Disponibile";
+
+            if (!statoDisponibile(statoCorrente)) {
+                alert("Il veicolo non è disponibile. Scegli un altro veicolo.");
+                return;
+            }
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            const costoMinuto = calcolaCostoMinuto(veicoloSelezionato);
+            const dataInizio = new Date().toISOString();
+
+            const { error: rentErr } = await supabaseClient.from("noleggi").insert([{
+                utente_id: user.id,
+                veicolo_id: veicoloSelezionato.codice,
+                stato: "Attivo",
+                data_inizio: dataInizio
+            }]);
+
+            if (rentErr) {
+                alert("Errore durante l'avvio del noleggio: " + rentErr.message);
+                return;
+            }
+
+            const { error: vehicleErr } = await supabaseClient
+                .from("veicoli")
+                .update({ stato: "In uso" })
+                .eq("codice", veicoloSelezionato.codice);
+
+            if (vehicleErr) {
+                alert("Noleggio creato, ma errore nell'aggiornamento del veicolo: " + vehicleErr.message);
+                return;
+            }
+
+            localStorage.setItem("noleggio_corrente_info", JSON.stringify({
+                veicolo_id: veicoloSelezionato.codice,
+                nome: veicoloSelezionato.nome,
+                tipo: veicoloSelezionato.tipo,
+                batteria: veicoloSelezionato.batteria,
+                stato_iniziale: statoCorrente,
+                costo_minuto: costoMinuto,
+                secondi_motore: 0,
+                prezzo_corrente: 0,
+                data_inizio: dataInizio
+            }));
+
+            window.location.href = "noleggio-attivo.html";
         }
 
         async function gestisciPrenotazionePulsante(codice) {
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
-            
+
             if (!startF || !endF) {
                 alert("Seleziona data e orario nel filtro!");
                 return;
@@ -168,20 +615,35 @@
 
         async function avviaPrenotazione(codice, inizio, fine, istantanea) {
             const { data: { user } } = await supabaseClient.auth.getUser();
-            await supabaseClient.from("prenotazioni").insert([{ utente_id: user.id, veicolo_id: codice, data_inizio_prevista: inizio, data_fine_prevista: fine, tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata' }]);
-            if (istantanea) await supabaseClient.from("veicoli").update({ stato: "Prenotato" }).eq("codice", codice);
+
+            if (!user) {
+                window.location.href = "login-user.html";
+                return;
+            }
+
+            await supabaseClient.from("prenotazioni").insert([{
+                utente_id: user.id,
+                veicolo_id: codice,
+                data_inizio_prevista: inizio,
+                data_fine_prevista: fine,
+                tipo_prenotazione: istantanea ? 'Istantanea' : 'Programmata'
+            }]);
+
+            if (istantanea) {
+                await supabaseClient
+                    .from("veicoli")
+                    .update({ stato: "Prenotato" })
+                    .eq("codice", codice);
+            }
+
             alert("Prenotazione effettuata!");
             window.location.href = "mie-prenotazioni.html";
         }
 
-        async function avviaNoleggio(c) {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            await supabaseClient.from("noleggi").insert([{ utente_id: user.id, veicolo_id: c, stato: "Attivo", data_inizio: new Date().toISOString() }]);
-            await supabaseClient.from("veicoli").update({ stato: "In uso" }).eq("codice", c);
-            window.location.href = "noleggio-attivo.html";
+        async function logout() {
+            await supabaseClient.auth.signOut();
+            window.location.href = "login-user.html";
         }
-
-        async function logout() { await supabaseClient.auth.signOut(); window.location.href = "login-user.html"; }
     </script>
 </body>
 </html>
