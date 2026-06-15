@@ -89,11 +89,6 @@
             const startF = document.getElementById("filtro-inizio").value;
             const endF = document.getElementById("filtro-fine").value;
             
-            if (!startF || !endF) {
-                alert("Per favore seleziona sia l'orario di inizio che di fine.");
-                return;
-            }
-
             let query = supabaseClient.from("veicoli").select("*");
             if (tipo !== "Tutti") query = query.eq("tipo", tipo);
             const { data: veicoli } = await query;
@@ -102,26 +97,36 @@
             const div = document.getElementById("lista-veicoli");
             div.innerHTML = "";
             
-            // Usiamo il valore grezzo (ISO locale) per il confronto, così è coerente con il salvataggio
-            const sRicerca = new Date(startF).getTime();
-            const eRicerca = new Date(endF).getTime();
+            // Se i filtri non sono valorizzati, non eseguiamo comparazioni restrittive sulle prenotazioni
+            const eseguiFiltro = startF && endF;
+            
+            // Riconduciamo le stringhe locali ad oggetti Date neutri (senza offset dinamici)
+            // forzando lo stesso trattamento sia in scrittura che in lettura.
+            const sRicerca = eseguiFiltro ? new Date(startF.replace('Z', '')).getTime() : 0;
+            const eRicerca = eseguiFiltro ? new Date(endF.replace('Z', '')).getTime() : 0;
             
             veicoli?.forEach(v => {
                 if (v.stato === "In uso") return;
                 
                 let isOccupato = false;
                 
-                prenotazioni?.forEach(p => {
-                    if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
-                        const ps = new Date(p.data_inizio_prevista).getTime();
-                        const pe = new Date(p.data_fine_prevista).getTime();
-                        
-                        // Confronto matematico puro in millisecondi
-                        if (sRicerca < pe && eRicerca > ps) {
-                            isOccupato = true;
+                if (eseguiFiltro) {
+                    prenotazioni?.forEach(p => {
+                        if (String(p.veicolo_id).trim() === String(v.codice).trim()) {
+                            // Puliamo le stringhe da eventuali residui di fuso orario salvati per sincronizzarle all'input locale
+                            const dataInizioPulita = p.data_inizio_prevista ? p.data_inizio_prevista.split('.')[0].replace('Z', '') : '';
+                            const dataFinePulita = p.data_fine_prevista ? p.data_fine_prevista.split('.')[0].replace('Z', '') : '';
+                            
+                            const ps = new Date(dataInizioPulita).getTime();
+                            const pe = new Date(dataFinePulita).getTime();
+                            
+                            // Logica matematica di sovrapposizione esatta
+                            if (sRicerca < pe && eRicerca > ps) {
+                                isOccupato = true;
+                            }
                         }
-                    }
-                });
+                    });
+                }
                 
                 if (isOccupato) return;
 
@@ -139,8 +144,7 @@
                 return;
             }
 
-            // Inviamo l'orario così com'è (formato ISO locale: YYYY-MM-DDTHH:MM)
-            // Aggiungiamo i secondi per mantenere la coerenza
+            // Inviamo l'orario privo di offset adattivi per conservare l'orario reale visibile
             await avviaPrenotazione(codice, startF + ":00", endF + ":00", false);
         }
 
